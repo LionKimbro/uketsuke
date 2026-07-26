@@ -1,0 +1,21 @@
+{
+  "zookeep-project-guid": "2250ead7-fa80-43ff-a45c-888807473e2f",
+  "name": "uketsuke",
+  "repo-type": "python-2026-03",
+  "license": "CC0-1.0",
+  "repository": {
+    "name": "uketsuke",
+    "visibility": "public"
+  },
+  "python": {
+    "distribution": {
+      "name": "uketsuke"
+    },
+    "import-packages": [
+      {
+        "name": "uketsuke",
+        "path": "src/uketsuke"
+      }
+    ]
+  }
+}
