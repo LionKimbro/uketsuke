@@ -1,0 +1,14 @@
+{
+  "document": {
+    "document-id": "uketsuke.future-idea.request-identity-scope.v1",
+    "title": "Future Idea: Request Identity Scope",
+    "tags": ["uketsuke", "future-idea", "identity", "deduplication"],
+    "purpose": "Consider whether MESSAGE_ID is globally unique or scoped to a sender, host-program, protocol, or namespace.",
+    "status": "deferred",
+    "type": {"logical": {"base": "file", "format": "json", "encoding": "utf-8"}, "semantic": {"base": "future-idea"}}
+  },
+  "idea": {
+    "possible-metadata": ["SENDER_ID", "MESSAGE_NAMESPACE"],
+    "potential-use": "Prevent unrelated senders from colliding while keeping identifiers practical to generate."
+  }
+}

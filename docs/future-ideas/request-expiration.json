@@ -1,0 +1,15 @@
+{
+  "document": {
+    "document-id": "uketsuke.future-idea.request-expiration.v1",
+    "title": "Future Idea: Request Expiration",
+    "tags": ["uketsuke", "future-idea", "expiration", "requests"],
+    "purpose": "Consider allowing a request to expire before execution or response delivery.",
+    "status": "deferred",
+    "type": {"logical": {"base": "file", "format": "json", "encoding": "utf-8"}, "semantic": {"base": "future-idea"}}
+  },
+  "idea": {
+    "possible-metadata": ["EXPIRES_AT", "MAX_AGE", "EXPIRATION_POLICY"],
+    "potential-use": "Prevent stale requests from producing late side effects or late responses.",
+    "open-policy": "Decide whether an expired request is failed, quarantined, completed without execution, or answered with an expiration outcome."
+  }
+}

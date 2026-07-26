@@ -1,0 +1,15 @@
+{
+  "document": {
+    "document-id": "uketsuke.future-idea.sender-newness-declaration.v1",
+    "title": "Future Idea: Sender Newness Declaration",
+    "tags": ["uketsuke", "future-idea", "deduplication", "sender"],
+    "purpose": "Consider allowing a sender to declare whether a request is definitely new or may be a resend.",
+    "status": "deferred",
+    "type": {"logical": {"base": "file", "format": "json", "encoding": "utf-8"}, "semantic": {"base": "future-idea"}}
+  },
+  "idea": {
+    "possible-metadata": ["REQUEST_IS_NEW", "REQUEST_MAY_BE_RESEND"],
+    "potential-use": "A sender that lost its own send record after a crash could communicate how much duplicate uncertainty it has.",
+    "caution": "A sender declaration cannot be treated as proof. A false newness declaration could cause duplicate execution of a non-idempotent task."
+  }
+}

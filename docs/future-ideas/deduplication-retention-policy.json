@@ -1,0 +1,15 @@
+{
+  "document": {
+    "document-id": "uketsuke.future-idea.deduplication-retention-policy.v1",
+    "title": "Future Idea: Deduplication Retention Policy",
+    "tags": ["uketsuke", "future-idea", "deduplication", "retention"],
+    "purpose": "Consider retaining compact request identity records for a bounded deduplication horizon instead of forever.",
+    "status": "deferred",
+    "type": {"logical": {"base": "file", "format": "json", "encoding": "utf-8"}, "semantic": {"base": "future-idea"}}
+  },
+  "idea": {
+    "possible-record-fields": ["MESSAGE_ID", "status", "completed_at", "response_file", "response_hash"],
+    "potential-use": "Allow retry deduplication while bounding long-term storage.",
+    "open-policy": "Decide what happens when a retry arrives after its deduplication record has expired."
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "document": {
+    "document-id": "uketsuke.future-idea.duplicate-response-reuse.v1",
+    "title": "Future Idea: Duplicate Response Reuse",
+    "tags": ["uketsuke", "future-idea", "deduplication", "responses"],
+    "purpose": "Consider reusing the prior JSON response for a duplicate request instead of executing it again.",
+    "status": "deferred",
+    "type": {"logical": {"base": "file", "format": "json", "encoding": "utf-8"}, "semantic": {"base": "future-idea"}}
+  },
+  "idea": {
+    "potential-use": "Make sender retries safe and allow a sender to recover a response it did not record.",
+    "open-policy": "Decide whether the prior response is copied, regenerated, or referenced, and how long it remains available."
+  }
+}

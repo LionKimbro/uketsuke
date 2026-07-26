@@ -1,0 +1,14 @@
+{
+  "document": {
+    "document-id": "uketsuke.future-idea.explicit-retry-attempt.v1",
+    "title": "Future Idea: Explicit Retry Attempt",
+    "tags": ["uketsuke", "future-idea", "retry", "diagnostics"],
+    "purpose": "Consider allowing a sender to include retry-attempt or retry-lineage metadata while keeping the logical MESSAGE_ID stable.",
+    "status": "deferred",
+    "type": {"logical": {"base": "file", "format": "json", "encoding": "utf-8"}, "semantic": {"base": "future-idea"}}
+  },
+  "idea": {
+    "possible-metadata": ["ATTEMPT_NUMBER", "RETRY_OF", "FIRST_SENT_AT"],
+    "potential-use": "Improve diagnostics and policy decisions without treating every resend as a new logical request."
+  }
+}
