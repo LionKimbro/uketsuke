@@ -1,0 +1,3 @@
+
+* after completing an action, keep an in-memory hint about what needs to be done next, and then do that, from the hint, rather than trying to reconstruct state all over again
+
