@@ -35,10 +35,10 @@
   },
 
   "overview": {
-    "summary": "uketsuke is a small Python package for use by another Python program. Its receptionist machine watches inbox/, accepts one job file at a time, dispatches work on that file, writes a response describing the result, and moves the completed work into retirement storage.",
+    "summary": "uketsuke is a small Python package for use by another Python program. Its receptionist machine watches inbox/, accepts one request-file at a time, dispatches work on that file, writes a response describing the result, and reconciles the completed work into durable completed storage.",
     "name-meaning": "uketsuke is treated as the receptionist at the front desk: it receives, routes, reports, and closes the record.",
     "initial-goal": "Make one complete job lifecycle dependable and inspectable before adding richer routing, concurrency, or distributed coordination.",
-    "abstract-protocol": "A job is a file. The core protocol is defined in terms of file discovery, claiming, dispatch, response, and retirement. The file's contents and extension are not fixed by this specification.",
+    "abstract-protocol": "A job is a file. The core protocol is defined in terms of file discovery, claiming, dispatch, response, and completion. The file's contents and extension are not fixed by this specification.",
     "example-representation": "JSON is used for demonstrations, test fixtures, and example handlers only. JSON is not the abstract job protocol and is not required of job producers or handlers.",
     "non-goals": [
       "A general workflow engine.",
@@ -68,7 +68,7 @@
     "package-responsibility": "Expose the receptionist and dispatch machinery as importable Python functionality.",
     "invocation": "Outside the package boundary. uketsuke does not define or manage its own process invocation.",
     "harness": "Testing and demonstration require a separate package under src/. A final package name is not yet chosen; src/test-uketsuke/ is a candidate name, subject to Python package naming rules.",
-    "harness-responsibility": "Create temporary inbox/work/outbox/retired environments, create example request-files, call uketsuke through its importable API, and inspect response-files."
+    "harness-responsibility": "Create temporary inbox/work/response-pending/outbox/completed environments, create example request-files, call uketsuke through its importable API, and inspect response-files."
   },
 
   "design-principles": [
@@ -78,8 +78,8 @@
     "External file paths and file lifecycle state are normalized and checked at the castle gate before dispatch.",
     "The trusted interior operates on canonical current-file state; file contents remain job-specific unless a handler chooses to interpret them.",
     "Claiming a job is an atomic filesystem operation where the platform permits it.",
-    "Work is reported before it is retired.",
-    "Retirement preserves evidence; normal completion does not destroy the original job.",
+    "Work is reported before it is marked completed.",
+    "Completion preserves evidence; normal reconciliation does not destroy the original request-file.",
     "The first runtime is single-process and sequential unless a later specification changes this explicitly."
   ],
 
@@ -88,21 +88,25 @@
       "owner": "host-program",
       "function": "get_key(request_file, KEY)",
       "purpose": "Extract message information without making uketsuke depend on the request-file format.",
-      "example-keys": ["MESSAGE_ID", "EXECUTION_TIMEOUT", "RESPONSE_TIMEOUT"],
+      "example-keys": ["MESSAGE_ID", "TASK_NAME", "TASK_PARAMETERS", "RESPONSE_ADDRESS", "NO_RESPONSE", "EXECUTION_TIMEOUT", "RESPONSE_TIMEOUT"],
       "rule": "uketsuke may request named keys, but does not interpret the request-file directly."
     },
     "filesystem-boundary": {
-      "owner": "host-platform, optionally wrapped by host-program",
-      "purpose": "Supply filesystem operations and durability behavior without making the receptionist depend on one operating system implementation.",
-      "semantic-operations": [
-        "list inbox files",
+    "owner": "host-program, using the host-platform",
+      "purpose": "Supply low-level filesystem primitives and durability behavior without making uketsuke depend on one operating system implementation.",
+      "host-primitives": [
+        "write a file and synchronize it to disk",
+        "read a file from disk",
+        "get a directory listing",
+        "other low-level operations may be added when required, such as moving or deleting a file; these do not transfer lifecycle ownership to the host"
+      ],
+      "uketsuke-semantics": [
         "claim a request-file",
         "publish a response-file",
         "retire a request-file",
-        "quarantine a request-file",
-        "synchronize durable state"
+        "quarantine a request-file"
       ],
-      "rule": "The boundary should expose semantic guarantees such as claim and publish rather than leaking low-level sync or rename details into the lifecycle machine."
+      "rule": "The host supplies primitive file access. uketsuke combines those primitives into the semantic lifecycle operations that define the receptionist."
     }
   },
 
@@ -110,17 +114,19 @@
     "root": "The configured uketsuke working directory.",
     "directories": {
       "inbox/": "Unclaimed incoming job files. Producers write temporary files and atomically rename complete files into this directory. The file extension and contents are not prescribed.",
-      "working/": "Claimed job files currently being dispatched.",
-      "outbox/": "One response-file for each accepted request-file, published by atomic rename after it is complete.",
-      "retired/": "Completed job records and lifecycle metadata, retained for inspection and replay analysis.",
-      "dead-letter/": "Jobs that cannot be normalized or whose lifecycle cannot be completed safely; never silently discarded.",
+      "working/": "Claimed request-files whose task execution or execution-result recording is in progress.",
+      "response-pending/": "Claimed request-files with a completed outcome whose response still needs reconciliation. The exact durable representation is not yet fixed.",
+      "outbox/": "JSON response-files ready to be delivered or recognized as delivered by the reconciliation machine.",
+      "completed/": "Request-files for which the response obligation is complete, or for which no response was requested.",
+      "failed/": "Request-files whose task execution failed and whose failure outcome has been recorded; a response may still be pending if one is possible.",
+      "dead-letter/": "Request-files that cannot be safely interpreted, completed, or answered; never silently discarded.",
       "tmp/": "Temporary files used while writing JSON or assembling an artifact; contents are not part of the public protocol."
     },
     "file-naming": {
       "job": "A deterministic safe filename chosen by the producer or configured convention.",
       "response": "A deterministic safe filename associated with the claimed job file.",
-      "retired-job": "retired/<job-file-name>",
-      "retired-record": "A lifecycle record associated with the retired job file; representation is not prescribed.",
+      "completed-job": "completed/<job-file-name>",
+      "completion-record": "A lifecycle record associated with the completed request-file; representation is not prescribed.",
       "dead-letter": "dead-letter/<job-file-name>.<reason>",
       "rule": "Names must be deterministic where an association is required and must not permit path traversal."
     }
@@ -129,61 +135,102 @@
   "lifecycle": {
     "states": [
       "received",
-      "working",
-      "succeeded",
+      "claimed",
+      "executed",
+      "response-pending",
+      "completed",
       "failed",
-      "retired",
+      "unreplyable",
       "dead-letter"
     ],
-    "normal-flow": [
-      "A producer writes a complete job file into inbox/ through a temporary file and atomic rename.",
-      "uketsuke discovers a completed job file in inbox/.",
-      "uketsuke applies the configured file acceptance and identity rules, then atomically moves the file to working/; this is the claim.",
-      "uketsuke dispatches work on the claimed job file to the selected handler.",
-      "uketsuke writes a response artifact to outbox/ through a temporary file and atomic rename.",
-      "uketsuke writes a retirement record and moves the claimed job from working/ into retired/.",
-      "The job is now retired and is not selected again during ordinary polling."
+    "host-loop": "The host-program owns the main runtime loop and calls one uketsuke reconciliation turn at a time. uketsuke does not own invocation or the outer loop.",
+    "turn-function": "The exact public function name is not fixed yet. Conceptually it is a reconcile/do-something operation that inspects the filesystem and performs at most one meaningful lifecycle action.",
+    "priority-order": [
+      "Reconcile an unfinished response obligation.",
+      "If no response obligation needs work, find and execute one request-file.",
+      "If neither exists, report that there is no work to do."
+    ],
+    "response-reconciliation-turn": [
+      "Inspect the filesystem for a completed task whose response has not been durably handled.",
+      "If a JSON response-file is missing or incomplete, create or finish it from the durable task outcome.",
+      "If the response-file is already present, treat it as evidence and reconcile without duplicating it.",
+      "If a response was requested and can be delivered, complete the response obligation.",
+      "If no response was requested, skip response publication while still recording completion.",
+      "After the response obligation is complete, atomically mark the request-file completed."
+    ],
+    "execution-turn": [
+      "Inspect inbox/ for one request-file needing execution.",
+      "Claim it by moving it into the uketsuke-controlled working state.",
+      "Use get_key(request_file, KEY) to obtain the task name, task parameters, response address, response policy, and any applicable timeouts.",
+      "Look up the task name in the host-program-supplied task registry.",
+      "Call the selected task with the extracted task parameters.",
+      "Catch task execution failures and convert them into a durable failure outcome.",
+      "Durably record the task outcome and move the request-file into response-pending, failed, completed, or another explicitly defined next state.",
+      "Return control to the host-program; response delivery is reconciled on a later turn."
     ],
     "invalid-input-flow": [
-      "If a discovered file cannot be read or cannot be accepted under the configured file rules, do not dispatch it.",
-      "Write an error response when the job file can be identified.",
-      "Move the original artifact into dead-letter/ with a reason-bearing name.",
-      "If no safe job-id can be identified, preserve the artifact with a generated quarantine name and log the reason."
+      "If a discovered request-file cannot be read or cannot provide enough information to select or track work, do not execute it.",
+      "If a response address can be extracted, a failure response may be written; rejection does not guarantee a response.",
+      "If no response address can be extracted, preserve the request-file in an unreplyable or dead-letter state without attempting a reply.",
+      "No rejected response status is required; an unreplyable request is represented by its durable filesystem state and diagnostics."
     ],
     "crash-recovery": [
       "A file in inbox/ is unclaimed and may be retried.",
-      "A file in working/ is claimed but not known to be complete; startup recovery must inspect it before retrying.",
-      "A response in outbox/ is considered published once its final filename exists.",
-      "A job in retired/ is not retried by default.",
-      "Recovery must never overwrite an existing response or retirement record without an explicit operator action."
+      "A file in working/ may have been executing when the host-program stopped; recovery must treat execution as potentially incomplete.",
+      "A file in response-pending/ has a durable task outcome and must be reconciled before new execution.",
+      "A response-file in outbox/ is evidence that response publication reached its durable filesystem boundary.",
+      "A file in completed/ is not executed again by default.",
+      "Recovery must never overwrite an existing response-file or completion marker without an explicit reconciliation rule."
     ]
   },
 
   "dispatch": {
     "model": "A local registry maps configured file/job selection rules to handlers.",
     "selection": "The dispatcher selects exactly one host-program-supplied handler for the canonical current request-file. Selection may use get_key(request_file, KEY) or another explicitly supplied host function.",
-    "handler-contract": "A handler receives the canonical current request-file as its current work subject and returns work outcome information to uketsuke; uketsuke serializes the response-file as JSON.",
+    "handler-contract": "A handler receives the extracted task parameters as its coherent task record and returns response data to uketsuke; uketsuke serializes the response-file as JSON.",
     "initial-execution": "Handlers run synchronously in the uketsuke process, one claimed job at a time.",
-    "unknown-selection": "A job file for which no handler can be selected is a failed job outcome, not necessarily an invalid transport artifact; it receives a response and is retired.",
-    "handler-boundary": "Handlers must not mutate inbox/, working/, outbox/, retired/, or dead-letter/ directly. The receptionist owns lifecycle movement and response publication."
+    "failure-capture": "The execution boundary uses a broad exception capture around task invocation so ordinary task failures become durable failure outcomes instead of escaping into the host-program's main loop. Process-control exceptions such as interruption or termination remain a separate policy decision.",
+    "task-result": "A successful task returns response data. A task with no response data still produces a successful completion outcome when the request asks for no response.",
+    "unknown-selection": "A request-file for which no task handler can be selected becomes a failure outcome; it receives a failure response only if a response address can be extracted.",
+    "handler-boundary": "Handlers must not mutate inbox/, working/, response-pending/, outbox/, completed/, failed/, or dead-letter/ directly. The receptionist owns lifecycle movement and response publication."
+  },
+
+  "ownership-of-file-operations": {
+    "host-program-provides": [
+      "write_file(destination, content, [\"sync\"])",
+      "read_file(source)",
+      "list_directory(directory)"
+    ],
+    "uketsuke-provides": [
+      "claim_request_file(...)",
+      "reconcile_response_file(...)",
+      "complete_request_file(...)",
+      "fail_request_file(...)",
+      "quarantine_request_file(...)"
+    ],
+    "explanation": "The host-program gives uketsuke the primitive ability to work with durable files. uketsuke owns the policy, ordering, naming, movement, and lifecycle meaning of inbox/, working/, response-pending/, outbox/, completed/, failed/, and dead-letter/."
   },
 
   "operational-contract": {
-    "polling": "The host Python program repeatedly asks the package to scan inbox/ for completed job files. Poll interval and host loop policy are outside uketsuke.",
+    "execution-model": "Reconciliation, not a single forward-only pipeline. Each host-program turn asks what durable obligation is unfinished and repairs one obligation before looking for new work.",
+    "polling": "The host-program repeatedly asks the package for one reconciliation turn. Poll interval and host loop policy are outside uketsuke.",
     "ordering": "The initial implementation makes no global ordering promise. Within one scan, deterministic filename ordering is preferred.",
     "identity": "The job file's safe name or configured file identity is the initial identity candidate. A separate job-id field is not required by the abstract protocol.",
-    "idempotency": "Existing response or retirement artifacts are evidence that the lifecycle may already have completed and must be handled conservatively.",
+    "delivery-order": "Response reconciliation has priority over new task execution.",
+    "execution-delivery": "Task execution is at-least-once across crashes unless a stronger task-specific mechanism is added.",
+    "idempotency": "Tasks should be idempotent. A task that cannot safely be repeated requires an explicit task-specific protection or must be treated as potentially unsafe after interruption.",
     "atomicity": "All public artifacts are written to tmp/ and atomically renamed into their final directory; JSON is used only when the selected artifact representation is JSON.",
-    "logging": "Operational logs are append-only JSONL where implemented; the job response and retirement record remain the authoritative per-job outcome artifacts.",
-    "observability": "At every lifecycle boundary, the filesystem should make it possible to determine whether a job is received, claimed, reported, retired, or quarantined."
+    "logging": "Operational logs are append-only JSONL where implemented; the response-file and completion record remain the authoritative per-request outcome artifacts.",
+    "observability": "At every lifecycle boundary, the filesystem should make it possible to determine whether a request-file is received, claimed, executing, response-pending, completed, failed, or quarantined."
   },
 
   "response-semantics": {
     "success": "The handler completed and returned a result accepted by uketsuke.",
-    "failure": "The job was accepted and dispatched, but the handler or lifecycle operation failed.",
-    "rejected": "The incoming artifact could not be normalized as a job and was quarantined without dispatch.",
-    "response-timing": "The JSON response-file is published before normal retirement is finalized.",
-    "result-preservation": "The response-file contains a concise JSON result and diagnostics. Handler runtime objects must be converted to JSON-compatible values before publication."
+    "failure": "The request-file was accepted and dispatched, but the task or lifecycle operation failed. A failure response is written when a response address is available.",
+    "no-response": "The request-file explicitly indicates that no response is wanted. uketsuke records completion without writing a response-file.",
+    "unreplyable": "The request-file cannot yield a response address, so uketsuke cannot send a response. This is represented as durable failure/quarantine state, not a rejected response.",
+    "response-timing": "The JSON response-file is published before normal completion is finalized.",
+    "result-preservation": "The response-file contains a concise JSON envelope with success or failure status, response data when available, and diagnostics when appropriate. Handler runtime objects must be converted to JSON-compatible values before publication."
   },
 
   "implementation-shape": {
@@ -192,7 +239,7 @@
       "files: file discovery, safe movement, and atomic artifact writes",
       "jobs: boundary normalization and file identity",
       "dispatch: handler registration and current-file execution",
-      "receptionist: polling, claiming, reporting, and retirement machine",
+      "receptionist: reconciliation, claiming, execution, reporting, and completion machine",
       "configuration: caller-supplied directories and handler selection rules"
     ],
     "machine-state": "The receptionist module should expose a small g bundle for run state and a register for the current job file. Internal lifecycle steps should be named zero-argument machine actions; arguments should represent caller-selected variation only.",
@@ -203,13 +250,13 @@
   },
 
   "acceptance-criteria": [
-    "A valid job file placed into inbox/ is eventually claimed, dispatched, answered, and retired.",
-    "A handler result produces a response artifact associated with the same job file.",
-    "A handler exception produces a failed response and does not crash the whole polling loop.",
+    "A valid request-file placed into inbox/ is eventually claimed, dispatched, answered when appropriate, and completed.",
+    "A handler result produces a JSON response-file associated with the same request-file when a response is requested.",
+    "A handler exception produces a failure outcome and does not crash the host-program's main loop.",
     "An unreadable or unacceptable job file is quarantined without dispatch and without silent deletion.",
     "A partial public artifact is never treated as a complete incoming job.",
-    "A restart can distinguish inbox, working, outbox, retired, and dead-letter states.",
-    "Repeated polling does not ordinarily dispatch a retired job a second time.",
+    "A restart can distinguish inbox, working, response-pending, outbox, completed, failed, and dead-letter states.",
+    "Repeated reconciliation does not ordinarily dispatch a completed request-file a second time.",
     "Public artifact writes are atomic at the filesystem boundary; encoding is selected by the artifact representation.",
     "The package is usable by an importing Python program without invoking a uketsuke-owned process.",
     "A separate harness covers successful dispatch, missing handler selection, handler failure, unacceptable input, and recovery from interrupted lifecycle steps."
@@ -222,7 +269,7 @@
     "Should response publication be sufficient for downstream consumers, or should an outbox delivery/acknowledgement lifecycle be added?",
     "What operator action finalizes or replays a job stranded in working/?",
     "What should the importing host program call to perform one scan or run a longer receptionist loop?",
-    "What retention policy governs retired/ and dead-letter/?",
+    "What retention policy governs completed/, failed/, and dead-letter/?",
     "Do job producers require identity, correlation, priority, or retry metadata in v1?",
     "What final importable package name should the separate test/demo harness use?"
   ],
@@ -260,8 +307,8 @@
         "data-dictionary": {
           "owned_by": "uketsuke receptionist",
           "created_by": "job producer",
-          "updated_by": ["boundary normalization", "retirement metadata"],
-          "persistence": "filesystem artifact through retirement",
+          "updated_by": ["boundary normalization", "completion metadata"],
+    "persistence": "filesystem artifact through completion",
           "primary_audience": ["job producers", "handlers", "operators", "test tools"],
           "invariants": ["job-id remains stable", "job-type selects one dispatch handler"]
         },
@@ -297,8 +344,7 @@
               "required": true,
               "vocabulary": {
                 "succeeded": "Handler completed successfully.",
-                "failed": "Handler or lifecycle processing failed.",
-                "rejected": "Input could not be accepted as a job."
+                "failed": "Task or lifecycle processing failed."
               }
             },
             "completed-at": {"ref": "timestamp", "required": false},
@@ -308,15 +354,15 @@
           "additional_keys": true
         }
       },
-      "retirement-record": {
-        "title": "Uketsuke Retirement Record",
-        "description": "One possible JSON representation of retirement evidence for demonstrations. The abstract protocol does not require JSON.",
+      "completion-record": {
+        "title": "Uketsuke Completion Record",
+        "description": "One possible JSON representation of completion evidence for demonstrations. The abstract protocol does not require JSON.",
         "structure": {
           "type": "object",
           "keys": {
             "job-id": {"ref": "job-id", "required": true},
-            "retired-at": {"ref": "timestamp", "required": false},
-            "final-status": {"type": "succeeded, failed, or rejected", "required": true},
+            "completed-at": {"ref": "timestamp", "required": false},
+            "final-status": {"type": "succeeded or failed", "required": true},
             "job-path": {"type": "string", "required": true, "json_clean": true},
             "response-path": {"type": "string", "required": false, "json_clean": true}
           },
