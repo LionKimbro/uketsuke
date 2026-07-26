@@ -10,7 +10,7 @@
       "filesystem",
       "specification"
     ],
-    "purpose": "Define the first dependable, FileTalk-based uketsuke implementation: receive jobs, dispatch them, report outcomes, and retire the work.",
+    "purpose": "Define the first dependable, FileTalk-based uketsuke package: receive job files, dispatch work, report outcomes, and retire the files.",
     "type": {
       "logical": {
         "base": "file",
@@ -35,47 +35,94 @@
   },
 
   "overview": {
-    "summary": "uketsuke is a small receptionist process for FileTalk jobs. It watches inbox/, accepts one job artifact at a time, dispatches the job to a registered handler, writes a response describing the result, and moves the completed job into retirement storage.",
+    "summary": "uketsuke is a small Python package for use by another Python program. Its receptionist machine watches inbox/, accepts one job file at a time, dispatches work on that file, writes a response describing the result, and moves the completed work into retirement storage.",
     "name-meaning": "uketsuke is treated as the receptionist at the front desk: it receives, routes, reports, and closes the record.",
     "initial-goal": "Make one complete job lifecycle dependable and inspectable before adding richer routing, concurrency, or distributed coordination.",
+    "abstract-protocol": "A job is a file. The core protocol is defined in terms of file discovery, claiming, dispatch, response, and retirement. The file's contents and extension are not fixed by this specification.",
+    "example-representation": "JSON is used for demonstrations, test fixtures, and example handlers only. JSON is not the abstract job protocol and is not required of job producers or handlers.",
     "non-goals": [
       "A general workflow engine.",
       "A network service or socket-based broker.",
       "A hidden database-backed queue.",
       "A scheduler with dependency-graph semantics.",
-      "A guarantee that arbitrary jobs are safe to execute."
+      "A guarantee that arbitrary jobs are safe to execute.",
+      "A command-line application or invocation manager."
     ]
+  },
+
+  "terminology": {
+    "host-program": "The Python application that imports uketsuke. It receives command-line arguments, owns the work being answered, owns or configures the inbox/, supplies folder locations and host callbacks, and uses uketsuke for dependable file lifecycle handling.",
+    "host-platform": "The operating-system and filesystem environment in which the host-program and uketsuke run. It provides process execution, memory, directories, file movement, and durability or synchronization mechanisms.",
+    "request-file": "The opaque file that arrives through inbox/. uketsuke manages its lifecycle but does not assume how its message information is encoded.",
+    "response-file": "The JSON file written by uketsuke to report what happened to a request-file. Its JSON shape is part of the uketsuke contract and will be specified separately.",
+    "message-key": "A named fact that the host-program knows how to extract from a request-file, such as MESSAGE_ID, EXECUTION_TIMEOUT, or RESPONSE_TIMEOUT.",
+    "get-key": "The host-program-supplied function uketsuke calls as get_key(request_file, KEY) to obtain a message-key value. uketsuke does not know the extraction mechanism.",
+    "uketsuke": "The importable receptionist package that owns the lifecycle machine and writes response-files.",
+    "handler": "The host-program-supplied work operation selected for a claimed request-file."
+  },
+
+  "platform-and-packaging": {
+    "initial-platform": "Windows 11",
+    "language": "Python",
+    "distribution": "A Python package imported and used by Python programs.",
+    "package-responsibility": "Expose the receptionist and dispatch machinery as importable Python functionality.",
+    "invocation": "Outside the package boundary. uketsuke does not define or manage its own process invocation.",
+    "harness": "Testing and demonstration require a separate package under src/. A final package name is not yet chosen; src/test-uketsuke/ is a candidate name, subject to Python package naming rules.",
+    "harness-responsibility": "Create temporary inbox/work/outbox/retired environments, create example request-files, call uketsuke through its importable API, and inspect response-files."
   },
 
   "design-principles": [
     "Filesystem is the transport boundary; no sockets or shared memory are required.",
-    "JSON is the initial message format and UTF-8 is the encoding.",
+    "Request-files are abstract files; JSON is the fixed representation of response-files and an example representation for request-files in demonstrations and fixtures.",
     "A job file is an inspectable durable artifact, not merely an in-memory queue item.",
-    "External files are normalized and checked at the castle gate before dispatch.",
-    "The trusted interior operates on canonical job state.",
+    "External file paths and file lifecycle state are normalized and checked at the castle gate before dispatch.",
+    "The trusted interior operates on canonical current-file state; file contents remain job-specific unless a handler chooses to interpret them.",
     "Claiming a job is an atomic filesystem operation where the platform permits it.",
     "Work is reported before it is retired.",
     "Retirement preserves evidence; normal completion does not destroy the original job.",
     "The first runtime is single-process and sequential unless a later specification changes this explicitly."
   ],
 
+  "host-supplied-boundaries": {
+    "message-boundary": {
+      "owner": "host-program",
+      "function": "get_key(request_file, KEY)",
+      "purpose": "Extract message information without making uketsuke depend on the request-file format.",
+      "example-keys": ["MESSAGE_ID", "EXECUTION_TIMEOUT", "RESPONSE_TIMEOUT"],
+      "rule": "uketsuke may request named keys, but does not interpret the request-file directly."
+    },
+    "filesystem-boundary": {
+      "owner": "host-platform, optionally wrapped by host-program",
+      "purpose": "Supply filesystem operations and durability behavior without making the receptionist depend on one operating system implementation.",
+      "semantic-operations": [
+        "list inbox files",
+        "claim a request-file",
+        "publish a response-file",
+        "retire a request-file",
+        "quarantine a request-file",
+        "synchronize durable state"
+      ],
+      "rule": "The boundary should expose semantic guarantees such as claim and publish rather than leaking low-level sync or rename details into the lifecycle machine."
+    }
+  },
+
   "filesystem-layout": {
     "root": "The configured uketsuke working directory.",
     "directories": {
-      "inbox/": "Unclaimed incoming job files. Producers write temporary files and atomically rename complete files into this directory.",
+      "inbox/": "Unclaimed incoming job files. Producers write temporary files and atomically rename complete files into this directory. The file extension and contents are not prescribed.",
       "working/": "Claimed job files currently being dispatched.",
-      "outbox/": "One response artifact for each accepted job, published by atomic rename after it is complete.",
+      "outbox/": "One response-file for each accepted request-file, published by atomic rename after it is complete.",
       "retired/": "Completed job records and lifecycle metadata, retained for inspection and replay analysis.",
       "dead-letter/": "Jobs that cannot be normalized or whose lifecycle cannot be completed safely; never silently discarded.",
       "tmp/": "Temporary files used while writing JSON or assembling an artifact; contents are not part of the public protocol."
     },
     "file-naming": {
-      "job": "<job-id>.json",
-      "response": "<job-id>.response.json",
-      "retired-job": "retired/<job-id>.json",
-      "retired-record": "retired/<job-id>.retirement.json",
-      "dead-letter": "dead-letter/<job-id>.<reason>.json",
-      "rule": "Names must be deterministic from job-id and must not permit path traversal."
+      "job": "A deterministic safe filename chosen by the producer or configured convention.",
+      "response": "A deterministic safe filename associated with the claimed job file.",
+      "retired-job": "retired/<job-file-name>",
+      "retired-record": "A lifecycle record associated with the retired job file; representation is not prescribed.",
+      "dead-letter": "dead-letter/<job-file-name>.<reason>",
+      "rule": "Names must be deterministic where an association is required and must not permit path traversal."
     }
   },
 
@@ -89,17 +136,17 @@
       "dead-letter"
     ],
     "normal-flow": [
-      "A producer writes a complete canonical job into inbox/ through a temporary file and atomic rename.",
-      "uketsuke discovers a JSON file in inbox/.",
-      "uketsuke validates the file and atomically moves it to working/; this is the claim.",
-      "uketsuke dispatches the claimed job to the handler selected by job-type.",
+      "A producer writes a complete job file into inbox/ through a temporary file and atomic rename.",
+      "uketsuke discovers a completed job file in inbox/.",
+      "uketsuke applies the configured file acceptance and identity rules, then atomically moves the file to working/; this is the claim.",
+      "uketsuke dispatches work on the claimed job file to the selected handler.",
       "uketsuke writes a response artifact to outbox/ through a temporary file and atomic rename.",
       "uketsuke writes a retirement record and moves the claimed job from working/ into retired/.",
       "The job is now retired and is not selected again during ordinary polling."
     ],
     "invalid-input-flow": [
-      "If a discovered file is not readable JSON or cannot be normalized into a job, do not dispatch it.",
-      "Write an error response when a job-id can be identified.",
+      "If a discovered file cannot be read or cannot be accepted under the configured file rules, do not dispatch it.",
+      "Write an error response when the job file can be identified.",
       "Move the original artifact into dead-letter/ with a reason-bearing name.",
       "If no safe job-id can be identified, preserve the artifact with a generated quarantine name and log the reason."
     ],
@@ -113,19 +160,20 @@
   },
 
   "dispatch": {
-    "model": "A local registry maps job-type strings to handlers.",
-    "selection": "The dispatcher selects exactly one handler from the canonical job's job-type.",
-    "handler-contract": "A handler receives the canonical current job as its one coherent record and returns a JSON-compatible result record, or raises an error that uketsuke converts into a failed outcome.",
+    "model": "A local registry maps configured file/job selection rules to handlers.",
+    "selection": "The dispatcher selects exactly one host-program-supplied handler for the canonical current request-file. Selection may use get_key(request_file, KEY) or another explicitly supplied host function.",
+    "handler-contract": "A handler receives the canonical current request-file as its current work subject and returns work outcome information to uketsuke; uketsuke serializes the response-file as JSON.",
     "initial-execution": "Handlers run synchronously in the uketsuke process, one claimed job at a time.",
-    "unknown-job-type": "An unknown job-type is a failed job outcome, not an invalid transport message; it receives a response and is retired.",
+    "unknown-selection": "A job file for which no handler can be selected is a failed job outcome, not necessarily an invalid transport artifact; it receives a response and is retired.",
     "handler-boundary": "Handlers must not mutate inbox/, working/, outbox/, retired/, or dead-letter/ directly. The receptionist owns lifecycle movement and response publication."
   },
 
   "operational-contract": {
-    "polling": "The process repeatedly scans inbox/ for completed JSON files. Poll interval and one-shot versus daemon mode are runtime configuration, not job semantics.",
+    "polling": "The host Python program repeatedly asks the package to scan inbox/ for completed job files. Poll interval and host loop policy are outside uketsuke.",
     "ordering": "The initial implementation makes no global ordering promise. Within one scan, deterministic filename ordering is preferred.",
-    "idempotency": "job-id is the identity key. Existing response or retirement artifacts are evidence that the lifecycle may already have completed and must be handled conservatively.",
-    "atomicity": "All public JSON artifacts are written to tmp/ and atomically renamed into their final directory.",
+    "identity": "The job file's safe name or configured file identity is the initial identity candidate. A separate job-id field is not required by the abstract protocol.",
+    "idempotency": "Existing response or retirement artifacts are evidence that the lifecycle may already have completed and must be handled conservatively.",
+    "atomicity": "All public artifacts are written to tmp/ and atomically renamed into their final directory; JSON is used only when the selected artifact representation is JSON.",
     "logging": "Operational logs are append-only JSONL where implemented; the job response and retirement record remain the authoritative per-job outcome artifacts.",
     "observability": "At every lifecycle boundary, the filesystem should make it possible to determine whether a job is received, claimed, reported, retired, or quarantined."
   },
@@ -134,48 +182,53 @@
     "success": "The handler completed and returned a result accepted by uketsuke.",
     "failure": "The job was accepted and dispatched, but the handler or lifecycle operation failed.",
     "rejected": "The incoming artifact could not be normalized as a job and was quarantined without dispatch.",
-    "response-timing": "The response is published before normal retirement is finalized.",
-    "result-preservation": "The response may contain a concise result and diagnostics, but should not embed arbitrary non-JSON runtime objects or secrets."
+    "response-timing": "The JSON response-file is published before normal retirement is finalized.",
+    "result-preservation": "The response-file contains a concise JSON result and diagnostics. Handler runtime objects must be converted to JSON-compatible values before publication."
   },
 
   "implementation-shape": {
     "recommended-modules": [
       "paths: configured directories and safe filename construction",
-      "files: UTF-8 JSON reads and atomic writes",
-      "jobs: boundary normalization and validation",
-      "dispatch: handler registration and current-job execution",
+      "files: file discovery, safe movement, and atomic artifact writes",
+      "jobs: boundary normalization and file identity",
+      "dispatch: handler registration and current-file execution",
       "receptionist: polling, claiming, reporting, and retirement machine",
-      "main: explicit startup and controlled process entrypoint"
+      "configuration: caller-supplied directories and handler selection rules"
     ],
-    "machine-state": "The receptionist module should expose a small g bundle for run state and a register for the current job. Internal lifecycle steps should be named zero-argument machine actions; arguments should represent caller-selected variation only.",
-    "startup": "No operational calls at import time. Registration, directory preparation, and polling begin from an explicit main() or init() path.",
+    "machine-state": "The receptionist module should expose a small g bundle for run state and a register for the current job file. Internal lifecycle steps should be named zero-argument machine actions; arguments should represent caller-selected variation only.",
+    "startup": "No operational calls at import time. The importing host program configures and starts the package through its Python API.",
+    "invocation-boundary": "uketsuke does not own a main loop, CLI, service process, or invocation policy.",
+    "test-and-demo-boundary": "Harness code belongs in a separate src/<harness-package>/ package and may use JSON fixtures for demonstrations.",
     "classes": "No classes are required for the initial implementation."
   },
 
   "acceptance-criteria": [
-    "A valid job placed into inbox/ is eventually claimed, dispatched, answered, and retired.",
-    "A handler result produces a valid response artifact with the same job-id.",
+    "A valid job file placed into inbox/ is eventually claimed, dispatched, answered, and retired.",
+    "A handler result produces a response artifact associated with the same job file.",
     "A handler exception produces a failed response and does not crash the whole polling loop.",
-    "Malformed JSON is quarantined without dispatch and without silent deletion.",
+    "An unreadable or unacceptable job file is quarantined without dispatch and without silent deletion.",
     "A partial public artifact is never treated as a complete incoming job.",
     "A restart can distinguish inbox, working, outbox, retired, and dead-letter states.",
     "Repeated polling does not ordinarily dispatch a retired job a second time.",
-    "Filesystem writes are UTF-8 and atomic at the public artifact boundary.",
-    "Tests cover successful dispatch, unknown job type, handler failure, malformed input, and recovery from interrupted lifecycle steps."
+    "Public artifact writes are atomic at the filesystem boundary; encoding is selected by the artifact representation.",
+    "The package is usable by an importing Python program without invoking a uketsuke-owned process.",
+    "A separate harness covers successful dispatch, missing handler selection, handler failure, unacceptable input, and recovery from interrupted lifecycle steps."
   ],
 
   "open-questions": [
-    "What exact job types and built-in handlers should the first release provide?",
-    "Should handlers be Python callables only, subprocess commands, or both?",
-    "What is the authoritative timestamp format: ISO 8601 UTC, Unix seconds, or another convention?",
+    "How are handlers selected from a job file: filename convention, extension, sidecar metadata, directory, or file contents?",
+    "Should handlers be Python callables only, or may the host program adapt other executors?",
+    "What exact JSON fields and vocabulary belong in the response-file?",
     "Should response publication be sufficient for downstream consumers, or should an outbox delivery/acknowledgement lifecycle be added?",
     "What operator action finalizes or replays a job stranded in working/?",
-    "Should the process expose one-shot and daemon modes in the first CLI?",
+    "What should the importing host program call to perform one scan or run a longer receptionist loop?",
     "What retention policy governs retired/ and dead-letter/?",
-    "Do job producers require a sender identity, correlation id, priority, or retry policy in v1?"
+    "Do job producers require identity, correlation, priority, or retry metadata in v1?",
+    "What final importable package name should the separate test/demo harness use?"
   ],
 
   "softspec": {
+    "role": "Non-normative JSON examples only. These structures demonstrate one possible representation and do not define the abstract job-file protocol.",
     "types": {
       "job-id": {
         "type": "string",
@@ -203,7 +256,7 @@
     "schemas": {
       "job": {
         "title": "Uketsuke Job",
-        "description": "The canonical JSON record accepted at the inbox boundary.",
+        "description": "One possible JSON representation of a job file for demonstrations. The abstract protocol does not require these fields.",
         "data-dictionary": {
           "owned_by": "uketsuke receptionist",
           "created_by": "job producer",
@@ -234,7 +287,7 @@
       },
       "response": {
         "title": "Uketsuke Job Response",
-        "description": "The durable outcome published for an accepted job.",
+        "description": "One possible JSON representation of a response file for demonstrations. The abstract protocol does not require JSON.",
         "structure": {
           "type": "object",
           "keys": {
@@ -257,7 +310,7 @@
       },
       "retirement-record": {
         "title": "Uketsuke Retirement Record",
-        "description": "Evidence that uketsuke finished the public lifecycle for a job.",
+        "description": "One possible JSON representation of retirement evidence for demonstrations. The abstract protocol does not require JSON.",
         "structure": {
           "type": "object",
           "keys": {
@@ -276,6 +329,8 @@
   "notes": [
     "This is an initial implementation specification, not a complete FileTalk or workflow standard.",
     "The inbox/ convention is specific to uketsuke and does not redefine FileTalk itself.",
-    "The specification intentionally leaves room for later job envelopes, subprocess handlers, retries, acknowledgements, and richer routing."
+    "The specification intentionally leaves room for later job envelopes, subprocess handlers, retries, acknowledgements, and richer routing.",
+    "The abstract unit is a file. JSON appears below only as an example representation for tests and demonstrations.",
+    "The package is a Windows 11 Python library used by importing programs; invocation and the demonstration harness are outside the uketsuke package."
   ]
 }
