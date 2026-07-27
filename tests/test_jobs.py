@@ -65,7 +65,6 @@ class JobsTests(unittest.TestCase):
                 "request-file-path": str(paths.path("opaque-request-file")),
                 "request-original-filename": "request.json",
                 "request-id": "request-1",
-                "reply-to": "reply.json",
                 "status": "claimed",
                 "completion-status": None,
                 "error": None,
@@ -81,7 +80,7 @@ class JobsTests(unittest.TestCase):
         saved_job = json.loads(paths.path("job").read_text(encoding="utf-8"))
         self.assertEqual(saved_job, jobs.g["job"])
         self.assertEqual(saved_job["status"], "claimed")
-        self.assertEqual(saved_job["reply-to"], "reply.json")
+        self.assertNotIn("reply-to", saved_job)
         self.assertEqual(saved_job["history"][0]["operation"], "claim-inbox-request")
         self.assertFalse(paths.path("job-nextstate").exists())
 

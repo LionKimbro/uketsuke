@@ -38,7 +38,7 @@ class RuntimeTests(unittest.TestCase):
         os.utime(older_request, (1, 1))
         request = paths.path("inbox") / "request.json"
         request.write_text(
-            '{"request-id": "request-1", "reply-to": "reply.json"}',
+            '{"request-id": "request-1"}',
             encoding="utf-8",
         )
 
@@ -48,7 +48,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(job["status"], "claimed")
         self.assertEqual(job["request-id"], "request-1")
         self.assertEqual(job["request-original-filename"], "request.json")
-        self.assertEqual(job["reply-to"], "reply.json")
+        self.assertNotIn("reply-to", job)
         self.assertFalse(request.exists())
         self.assertTrue(older_request.exists())
         self.assertTrue(paths.path("opaque-request-file").exists())
@@ -60,10 +60,10 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(runtime.g["operation"], "idle")
         self.assertEqual(runtime.panel["last-operation"], "idle")
 
-    def test_tick_executes_a_claimed_job_with_a_reply_destination(self):
+    def test_ticks_execute_then_report_a_claimed_job(self):
         request = paths.path("inbox") / "request.json"
         request.write_text(
-            '{"request-id": "request-1", "reply-to": "reply.json"}',
+            '{"request-id": "request-1"}',
             encoding="utf-8",
         )
         runtime.do_tick()
@@ -80,7 +80,13 @@ class RuntimeTests(unittest.TestCase):
         )
         self.assertEqual(runtime.panel["last-result"], "dispatch-succeeded")
 
-    def test_tick_executes_a_claimed_job_without_a_reply_destination_to_done(self):
+        self.assertTrue(runtime.do_tick())
+        reported_job = json.loads(paths.path("job").read_text(encoding="utf-8"))
+        self.assertEqual(reported_job["status"], "reported")
+        self.assertEqual(reported_job["history"][-1]["operation"], "send-job-reply")
+        self.assertEqual(runtime.panel["last-result"], "reply-succeeded")
+
+    def test_tick_executes_every_claimed_job_to_executed(self):
         (paths.path("inbox") / "request.json").write_text(
             '{"request-id": "request-1"}', encoding="utf-8"
         )
@@ -89,7 +95,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertTrue(runtime.do_tick())
 
         job = json.loads(paths.path("job").read_text(encoding="utf-8"))
-        self.assertEqual(job["status"], "done")
+        self.assertEqual(job["status"], "executed")
         self.assertEqual(job["completion-status"], "success")
 
     def test_tick_records_a_dispatch_error_in_a_claimed_job(self):
@@ -98,7 +104,7 @@ class RuntimeTests(unittest.TestCase):
 
         state.configuration["host-functions"]["dispatch-job"] = dispatch_job
         (paths.path("inbox") / "request.json").write_text(
-            '{"request-id": "request-1", "reply-to": "reply.json"}',
+            '{"request-id": "request-1"}',
             encoding="utf-8",
         )
         runtime.do_tick()
@@ -112,6 +118,25 @@ class RuntimeTests(unittest.TestCase):
         self.assertIn("RuntimeError: dispatcher broke", job["error"])
         self.assertEqual(job["history"][-1]["operation"], "dispatch-job")
         self.assertIn("RuntimeError: dispatcher broke", runtime.panel["last-error"])
+
+    def test_tick_records_a_reply_error_and_leaves_the_job_executed(self):
+        def send_reply(job):
+            raise RuntimeError("reply sender broke")
+
+        state.configuration["host-functions"]["send-reply"] = send_reply
+        (paths.path("inbox") / "request.json").write_text(
+            '{"request-id": "request-1"}', encoding="utf-8"
+        )
+        runtime.do_tick()
+        runtime.do_tick()
+
+        self.assertTrue(runtime.do_tick())
+
+        job = json.loads(paths.path("job").read_text(encoding="utf-8"))
+        self.assertEqual(job["status"], "executed")
+        self.assertIn("RuntimeError: reply sender broke", job["error"])
+        self.assertEqual(job["history"][-1]["operation"], "send-job-reply")
+        self.assertIn("RuntimeError: reply sender broke", runtime.panel["last-error"])
 
     def test_ticks_move_an_unrecognizable_request_to_dead_letter(self):
         request = paths.path("inbox") / "broken.json"

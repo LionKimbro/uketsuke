@@ -52,6 +52,9 @@ def identify_what_needs_to_be_done():
         if jobs.g["job"]["status"] == "claimed":
             return "execute-claimed-job"
 
+        if jobs.g["job"]["status"] == "executed":
+            return "send-job-reply"
+
         return "idle"
 
     if fsio.list_files(paths.path("inbox")):
@@ -72,6 +75,10 @@ def perform_the_selected_operation():
         perform_operation_executing_the_claimed_job()
         return
 
+    if g["operation"] == "send-job-reply":
+        perform_operation_sending_the_job_reply()
+        return
+
     if g["operation"] == "claim-inbox-request":
         perform_operation_claiming_an_inbox_request()
         return
@@ -87,7 +94,7 @@ def perform_operation_claiming_an_inbox_request():
     fsio.copy_file(selected_request_path, paths.path("opaque-request-file"))
 
     try:
-        summary = host.summarize_request(paths.path("opaque-request-file"))
+        request_id = host.summarize_request(paths.path("opaque-request-file"))
     except Exception:
         error = traceback.format_exc()
         jobs.create_new(
@@ -109,7 +116,7 @@ def perform_operation_claiming_an_inbox_request():
         info = {
             "request-file-path": str(paths.path("opaque-request-file")),
             "request-original-filename": selected_request_path.name,
-            "request-id": summary["request-id"],
+            "request-id": request_id,
             "status": "claimed",
             "completion-status": None,
             "error": None,
@@ -117,9 +124,6 @@ def perform_operation_claiming_an_inbox_request():
                 "summarize-request", "succeeded", None
             ),
         }
-        if "reply-to" in summary:
-            info["reply-to"] = summary["reply-to"]
-
         jobs.create_new(info)
         panel["last-result"] = "created-claimed-job"
 
@@ -135,10 +139,7 @@ def perform_operation_executing_the_claimed_job():
         response = host.dispatch_job(job)
     except Exception:
         job["completion-status"] = "fail"
-        if "reply-to" in job:
-            job["status"] = "executed"
-        else:
-            job["status"] = "done"
+        job["status"] = "executed"
 
         jobs.append_result("dispatch-job", "failed", ["error"])
         panel["last-result"] = "dispatch-failed"
@@ -147,13 +148,26 @@ def perform_operation_executing_the_claimed_job():
 
     job["response"] = response
     job["completion-status"] = "success"
-    if "reply-to" in job:
-        job["status"] = "executed"
-    else:
-        job["status"] = "done"
+    job["status"] = "executed"
 
     jobs.append_result("dispatch-job", "succeeded", [])
     panel["last-result"] = "dispatch-succeeded"
+
+
+def perform_operation_sending_the_job_reply():
+    job = jobs.g["job"]
+
+    try:
+        host.send_reply(job)
+    except Exception:
+        jobs.append_result("send-job-reply", "failed", ["error"])
+        panel["last-result"] = "reply-failed"
+        panel["last-error"] = job["error"]
+        return
+
+    job["status"] = "reported"
+    jobs.append_result("send-job-reply", "succeeded", [])
+    panel["last-result"] = "reply-succeeded"
 
 
 def perform_operation_completing_the_dead_letter_transition():

@@ -18,6 +18,7 @@ def make_configuration(inbox, work_space):
         "host-functions": {
             "summarize-request": summarize_request,
             "dispatch-job": dispatch_job,
+            "send-reply": send_reply,
         },
         "directories": {
             "inbox": Path(inbox),
@@ -91,11 +92,7 @@ def summarize_request(request_file_path):
     if "request-id" not in request:
         raise ValueError("The request JSON does not contain request-id")
 
-    summary = {"request-id": request["request-id"]}
-    if request.get("reply-to") is not None:
-        summary["reply-to"] = request["reply-to"]
-
-    return summary
+    return request["request-id"]
 
 
 def dispatch_job(job):
@@ -107,3 +104,8 @@ def dispatch_job(job):
     print(json.dumps(request, indent=2))
 
     return None
+
+
+def send_reply(job):
+    print("I received this job to report:")
+    print(json.dumps(job, indent=2, default=str))

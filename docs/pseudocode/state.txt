@@ -26,7 +26,7 @@ configuration = {
 	"list-files": None          # list-files(pathlib.Path) -> list[pathlib.Path]
     },
     "host-functions": {
-	"summarize-request": None, # summarize-request(pathlib.Path) -> summary dictionary
+	"summarize-request": None, # summarize-request(pathlib.Path) -> request-id string
 	"dispatch-job": None,     # dispatch-job(job) -> JSON-safe value or raises error
 	"send-reply": None        # send-reply(job) -> None or raises error
     },

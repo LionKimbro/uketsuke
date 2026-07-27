@@ -1,8 +1,8 @@
 The host reply-delivery operation for one executed job.
 
 This is a design note.  It does not currently render into a Python
-module.  Runtime selects this operation when JOB-LIFECYCLE.txt says an
-executed job with reply-to requires it.
+module. Runtime selects this operation when JOB-LIFECYCLE.txt says an
+executed job requires it.
 
 OWNS
   calling the host reply sender for the active job
@@ -10,7 +10,8 @@ OWNS
 
 READS
   the active executed job
-  its reply-to, response when present, error when present, and request-id
+  its opaque request file, response when present, error when present,
+  and request-id
 
 CALLS
   host.send_reply
@@ -18,7 +19,6 @@ CALLS
 
 MAY SAFELY ASSUME
   that the active job has status "executed"
-  that it has reply-to
 
 ENSURES
   that a successful host reply delivery is durably recorded as reported
@@ -43,4 +43,4 @@ def perform_operation_sending_the_job_reply():
 OPERATION IDENTITY
 
   send-job-reply
-    the attempt to send an executed job's outcome to its reply-to
+    the attempt to report an executed job's outcome

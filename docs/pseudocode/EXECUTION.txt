@@ -8,11 +8,9 @@ OWNS
   the durable before-dispatch boundary
   calling the host dispatcher for the active job
   recording the dispatch outcome in the active job
-  selecting the post-dispatch status from the presence of reply-to
 
 READS
   the active claimed job
-  its optional reply-to fact
 
 CALLS
   jobs.append_result
@@ -26,7 +24,7 @@ ENSURES
   that host dispatch is preceded by a durable execution-attempted state
   that a completed dispatch attempt has a durable success response or
   captured error in the job
-  that the next tick can either deliver its reply or retire it to done/
+  that the next tick can ask the host to report the completed job
 
 -----------------
 
@@ -40,21 +38,13 @@ def perform_operation_executing_the_claimed_job():
     if the host returns normally:
         store its returned value in the active job's response
         set completion-status to "success"
-
-        if the job has reply-to:
-            set status to "executed"
-        otherwise:
-            set status to "done"
+        set status to "executed"
 
         append a durable history entry recording successful dispatch
 
     if the host raises an exception:
         set completion-status to "fail"
-
-        if the job has reply-to:
-            set status to "executed"
-        otherwise:
-            set status to "done"
+        set status to "executed"
 
         append a durable history entry recording failed dispatch and its
         captured exception trace

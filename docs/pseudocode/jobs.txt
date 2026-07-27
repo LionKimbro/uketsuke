@@ -71,9 +71,7 @@ INFO FOR A SUCCESSFULLY SUMMARIZED CLAIM
   request-original-filename
     the filename the request had in inbox
   request-id
-    from the host summary
-  reply-to
-    from the host summary, when present
+    returned by the host summary
   status
     "claimed"
   completion-status

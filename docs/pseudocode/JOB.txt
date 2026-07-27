@@ -13,15 +13,13 @@ job = {
     "status": one current lifecycle status,
     "completion-status": one completion result, when there is one,
     "request-id": the request identifier obtained from the request file,
-    "reply-to": the reply location, when the request provides one,
     "response": present only when a response has been received,
     "error": None or the current error information,
     "history": a durable log of job operations,
 }
 ```
 
-uketsuke copies selected facts from the host's request summary into the
-job record.  It does not retain the entire summary dictionary.
+uketsuke records the request-id returned by the host's request summary.
 
 
 ## Job location
@@ -149,23 +147,14 @@ to be decided.
 
 The identifier of the request that initiated this job.
 
-uketsuke obtains it from the summary returned by the configured host
-`summarize-request` function.  The host determines how to interpret
-the opaque request file.
+uketsuke obtains it from the configured host `summarize-request`
+function. The host determines how to interpret the opaque request file.
 
 There is never more than one job for a request-id.
 
 For a dead-letter job whose request cannot be identified,
 `"request-id"` is `None`.
 
-
-## `reply-to`
-
-The location to which uketsuke should send the job's reply.
-
-This key is copied from the host request summary only when the request
-provides a reply location.  Its absence means the job skips the reply
-process.
 
 ## `response`
 

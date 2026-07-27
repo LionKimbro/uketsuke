@@ -13,6 +13,7 @@ configuration = {
     "host-functions": {
         "summarize-request": None,
         "dispatch-job": None,
+        "send-reply": None,
     },
     "directories": {
         "inbox": None,
@@ -40,6 +41,7 @@ def validate_that_all_expected_configuration_keys_are_present():
         "host-functions": {
             "summarize-request",
             "dispatch-job",
+            "send-reply",
         },
         "directories": {
             "inbox",

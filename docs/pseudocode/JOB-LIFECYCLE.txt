@@ -31,14 +31,13 @@ execution-attempted
   if startup finds this state, it resets it to claimed for re-execution
 
 executed
-  the host dispatch attempt completed and the job has a reply-to
+  the host dispatch attempt completed
   the job holds its response when there was one, or its error when there
   was one
   its completion-status records success or fail
 
 reported
-  the completed job's response or error was sent to its reply-to
-  destination
+  the host successfully reported the completed job's response or error
 
 done
   the job no longer needs any receptionist work
@@ -67,8 +66,7 @@ claimed
 
 execution-attempted
   -- startup repair after interruption --> claimed
-  -- host dispatch completes, with reply-to --> executed
-  -- host dispatch completes, without reply-to --> done
+  -- host dispatch completes --> executed
 
 dead-letter-pending
   -- copy raw request and job archive, then clear working -->
@@ -78,15 +76,12 @@ dead-letter-pending
 
 ## POST-DISPATCH TRANSITIONS
 
-The job stores the dispatch outcome whether or not it has a reply-to
-location.
+The job stores the dispatch outcome. The host reply sender decides
+whether an opaque reply is wanted and, if so, how to deliver it.
 
 ```text
-executed with reply-to
-  -- send result --> reported --> done --> retired into done/
-
-executed without reply-to
-  -- no reply is needed --> done --> retired into done/
+executed
+  -- ask host to report the outcome --> reported --> done --> retired into done/
 ```
 
 An active working job with status done requires only retirement into

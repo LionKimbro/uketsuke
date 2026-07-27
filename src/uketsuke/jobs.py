@@ -25,9 +25,6 @@ def create_new(info):
         "error": info["error"],
         "history": [info["history-entry"]],
     }
-    if "reply-to" in info:
-        g["job"]["reply-to"] = info["reply-to"]
-
     durably_replace_the_current_job_with_its_new_state()
 
 

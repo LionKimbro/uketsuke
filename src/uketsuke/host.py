@@ -11,3 +11,7 @@ def summarize_request(request_file_path):
 
 def dispatch_job(job):
     return state.configuration["host-functions"]["dispatch-job"](job)
+
+
+def send_reply(job):
+    return state.configuration["host-functions"]["send-reply"](job)
