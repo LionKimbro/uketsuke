@@ -1,0 +1,171 @@
+# Future Work TODO
+
+This document records worthwhile work that is intentionally outside the
+current implementation cycle. These are design and maintenance notes,
+not instructions to change the current system immediately.
+
+
+## Make `runtime.py` leaner
+
+`runtime.py` currently contains substantial mechanics inside its
+`perform_operation_...` functions. That makes the one-turn receptionist
+easy to follow at the top level, but gives the runtime module a growing
+amount of operational mass as claiming, execution, reply delivery,
+dead-letter transfer, and done-job retirement accumulate.
+
+Future work should examine whether each operation's detailed mechanics
+belongs in its own small machine or procedure module, while preserving
+runtime's ownership of priority selection and one-tick orchestration.
+The aim is not abstraction for its own sake: it is to keep runtime as
+the readable selector of the next highest-priority action.
+
+### My thoughts
+
+The current shape is a good starting point because the operation names
+are explicit and the control flow is visible. When the file becomes
+hard to scan, the likely next move is to extract the already-existing
+operation notes into matching small Python modules, leaving runtime to
+select an operation and call its machine. I would avoid a registry or
+generic dispatch framework unless a real repeated need appears; direct
+named calls will probably remain clearer and easier to recover after a
+crash.
+
+
+## Add a control channel
+
+Uketsuke will likely need operational commands that are distinct from
+ordinary inbox requests. Earlier discussion identified a configured
+`control/` directory containing JSON control messages. Candidate
+commands include `QUIT`, cleanup or truncation of older done records,
+and future maintenance operations.
+
+Control messages should be handled only after the active job has
+completed, but before runtime looks for a new inbox request. `QUIT`
+would set both the internal quit fact and the observable panel fact;
+then `do_tick()` would return `False` so the host knows not to call it
+again.
+
+### My thoughts
+
+This is worth treating as its own small protocol rather than smuggling
+maintenance commands through the request inbox. The control channel
+will need the same crash-awareness as jobs: a command should have a
+durable claim/complete boundary, and destructive maintenance commands
+need especially careful target and retention rules. I would begin with
+only `QUIT`, then add cleanup only after its exact deletion policy is
+specified and tested.
+
+
+## Capture the co-construction method
+
+This project uncovered a useful programming method: maintain a
+pseudocode layer between intent and Python, then render each settled
+machine from that layer. Cross-cutting concerns can live in one
+dedicated aspect-like note—such as job lifecycle, claiming, execution,
+reply delivery, dead-letter transfer, or done-job retirement—while a
+module note points to the relevant operation note instead of repeating
+all of its detail.
+
+Future work should compile the lessons from this collaboration into a
+short reusable guide: how to choose a module note, when to create a
+cross-cutting operation note, how to keep names parallel, how to mark
+unsettled decisions, and how to turn settled pseudocode into tested
+code without silently redesigning it during rendering.
+
+### My thoughts
+
+The strongest part of this method is not merely “write pseudocode
+first.” It is the separation of kinds of truth: the lifecycle map says
+what statuses mean; an operation note says how one transition works;
+the runtime says which transition has priority; Python realizes that
+decision. That is similar to aspect-oriented organization, but with
+plain files and explicit references rather than magical weaving. It
+keeps a cross-cutting rule discoverable without making every module
+repeat it.
+
+
+## Redesign the history system
+
+History began as a way to record a result—success or failure—alongside a
+durable job write. It quickly became a broader audit and recovery tool:
+it establishes pre-dispatch boundaries, captures failed summarization,
+names dead-letter and done archives, records reply attempts, and
+explains retirement. Some transitions now manually append entries
+because the present `append_result(operation, result, flags)` routine
+also immediately performs durable replacement.
+
+Future work should separate history-entry construction and mutation
+from the decision to durably write the current job. It should revisit
+the function signature, the entry vocabulary, the meaning of `result`,
+how errors relate to the job-level `error` field, and which timestamps
+must be stable identifiers versus ordinary event times.
+
+### My thoughts
+
+History has become part of the program's recovery protocol, not merely
+logging. I would likely give jobs a small operation for appending an
+entry in memory, and retain a separate explicit durable-replacement
+operation. That would let one transition make several coherent changes
+to the job and its history before choosing its exact persistence
+boundary. The entry shape should remain compact, but it may need a
+clearer distinction between an operation's outcome, explanatory facts,
+and an exception trace. This redesign deserves careful pseudocode and
+crash-path tests before changing the working system.
+
+
+## Additional future work proposed by Codex
+
+The following are my original contributions to this TODO list, rather
+than items proposed during the co-construction discussion above.
+
+
+### Add fault-injection recovery tests
+
+Build a development-only host layer that can deliberately raise or stop
+after a selected filesystem or host-operation boundary. Use it to test
+what startup and the next tick do after interruption at each step of
+claiming, dispatch, reply delivery, dead-letter transfer, and done-job
+retirement.
+
+### My thoughts
+
+The current tests prove several hand-picked recovery cases. Fault
+injection would turn the underlying design promise—every durable state
+must be intelligible to a new process—into a systematic test matrix.
+It should remain a test tool, not become runtime machinery. Even a
+small first version that interrupts only after each host filesystem
+call would catch surprising gaps.
+
+
+### Define archive identity and collision behavior
+
+Dead-letter and done artifacts currently derive paired names from the
+timestamp of the summarize-request history entry. Future work should
+state what happens if two archive attempts would target the same name,
+and whether the timestamp is sufficient as a permanent archive identity
+for the expected hosts and workloads.
+
+### My thoughts
+
+The timestamp rule is simple, retry-stable, and currently useful. Its
+collision story is merely implicit. It may be entirely adequate for the
+intended one-job-at-a-time receptionist, but it is better to explicitly
+say so—or deliberately incorporate a safe, stable component derived
+from the request ID—than leave future maintainers to infer the rule.
+
+
+### Add end-to-end scenario fixtures for the development harness
+
+Create a few small, readable fixture scenarios that place request files
+in an inbox and run ticks through complete outcomes: success, dispatch
+failure, malformed request, reply failure followed by retry, and clean
+retirement. Each scenario should inspect the resulting job archives and
+panel facts.
+
+### My thoughts
+
+Unit tests are already serving this project well. A handful of
+scenario-level tests would provide a complementary view of the actual
+receptionist experience, make the lifecycle easier to demonstrate, and
+offer a safe place to evolve the harness's example behavior without
+obscuring the focused machine tests.
