@@ -1,0 +1,43 @@
+The dead-letter transfer operation.
+
+This is a design note.  It does not currently render into a Python
+module.  Runtime selects this operation when JOB-LIFECYCLE.txt says a
+dead-letter-pending job requires it.
+
+OWNS
+  the ordered transfer of one unrecognizable request and its job record
+  from working/ into dead-letter/
+
+MAY SAFELY ASSUME
+  that the active job has status "dead-letter-pending"
+  that its failed summarize-request history entry determines the names
+  of its dead-letter artifacts
+
+ENSURES
+  that the dead-letter directory contains the final job record
+  that it contains the raw request when the working copy still exists
+  that the working job record is removed after the archive is written
+
+-----------------
+
+
+def complete_the_dead_letter_transition():
+    use the failed summarize-request history timestamp to construct both
+    named dead-letter destinations
+
+    if the working opaque request file exists:
+        copy it to its named dead-letter destination
+
+    set the in-memory job status to
+    "transferred-to-dead-letter-directory"
+
+    TEMPORARY, PENDING HISTORY-MECHANISM DESIGN:
+        manually append the dead-letter transfer history entry
+
+    write the changed job record as JSON to its named dead-letter
+    destination
+
+    if the working opaque request file exists:
+        delete it from working
+
+    delete the working job record

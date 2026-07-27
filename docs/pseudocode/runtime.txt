@@ -7,9 +7,6 @@ OWNS
   identifying and performing the absolute highest-priority available
   receptionist action
   the priority order among pending receptionist actions
-  dispatching an active job through the configured host
-  sending a completed job's result
-  retiring a job after its result has been sent
   globally inspectable facts about the most recent turn
 
 READS
@@ -78,38 +75,14 @@ def clear_the_observation_facts_for_this_new_turn():
 
 def identify_what_needs_to_be_done():
     ask jobs to read the current active job, if there is one
-    examine the active job and inbox according to the planned priority order
 
-    if the active job has status "dead-letter-pending":
-        return the operation that completes the dead-letter transition:
-          use the failed summarize-request history timestamp to construct
-              both named dead-letter destinations
-          if the working opaque request file exists:
-              copy it to its named dead-letter destination
-          set the in-memory job status to
-              "transferred-to-dead-letter-directory"
-          TEMPORARY, PENDING HISTORY-MECHANISM DESIGN:
-              manually append the dead-letter transfer history entry
-          write the changed job record as JSON to its named dead-letter
-              destination
-          if the working opaque request file exists:
-              delete it from working
-          delete the working job record
-
-    if there is an active job that needs work:
-        TEMPORARY, FOR THE CURRENT IMPLEMENTATION CYCLE:
-          return "idle"; the runtime idles because it does not yet
-          know how to perform the active job's work
-
-    if there is a result that needs to be sent:
-        return the operation that sends the result and moves the job to done
-
-    if there is a task that needs to be done:
-        return the operation that does the task and moves the job to the
-        state from which its result will be sent
+    if there is an active job:
+        return the lifecycle-required operation for its status
+        follow JOB-LIFECYCLE.txt for the status map
+        follow DEAD-LETTER.txt when that operation is dead-letter transfer
 
     if there is an inbox message available to claim:
-        return perform_operation_claiming_an_inbox_request
+        return "claim-inbox-request"
 
     return "idle"
 
@@ -126,14 +99,9 @@ def transition_to_the_quit_state():
 -----------------
 
 
-PLANNED PRIORITY ORDER
+PRIORITY ORDER
 
-These are part of the intended routine, but are not all implemented in
-the current cycle.
-
-  1. complete a dead-letter-pending transition
-  2. send a result, then move the job to done
-  3. do a task, then move the job to the state from which its result
-     will be sent
-  4. claim an inbox message and create its job
-  5. otherwise, there is no work
+  1. perform the lifecycle-required action for the active job, if there
+     is one
+  2. otherwise claim an inbox request, if there is one
+  3. otherwise idle

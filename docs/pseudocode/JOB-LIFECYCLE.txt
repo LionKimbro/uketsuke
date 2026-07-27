@@ -1,0 +1,98 @@
+The broad lifecycle map for one job.
+
+This is a cross-cutting design note.  It does not render into a Python
+module.  Runtime, jobs, startup, claiming, and later reply-delivery
+work defer to it for the meaning of each job status and transition.
+
+OWNS
+  the map of job statuses and their allowed transitions
+  the relationship between ordinary transitions and startup recovery
+
+DOES NOT OWN
+  the mechanics of any transition
+  job-record durability primitives
+  host request interpretation, dispatching, or reply delivery
+
+-----------------
+
+
+## STATUS MAP
+
+No active job
+  claiming either creates a job or leaves the inbox request authoritative
+
+claimed
+  the request was successfully summarized
+  the job is ready for its host dispatch attempt
+
+execution-attempted
+  uketsuke durably recorded its intention to dispatch before calling the
+  host
+  if startup finds this state, it resets it to claimed for re-execution
+
+executed
+  the host dispatch attempt returned normally or raised an error
+  the job holds its response when there was one, or its error when there
+  was one
+  its completion-status records success or fail
+
+reported
+  the completed job's result was sent to its reply-to destination
+
+done
+  the job no longer needs any receptionist work
+  it is ready to be, or has been, retired into done/
+
+dead-letter-pending
+  summarize-request could not understand the opaque request
+  the job has request-id None and a captured summary error
+  its failed summarize-request history timestamp names its dead-letter
+  artifacts
+
+transferred-to-dead-letter-directory
+  the final archived job record in dead-letter/
+  this is not an active working-job state
+
+
+## SETTLED TRANSITIONS
+
+```text
+no active job
+  -- claim and summarize successfully --> claimed
+  -- claim and summarize unsuccessfully --> dead-letter-pending
+
+claimed
+  -- durably prepare to call host dispatch --> execution-attempted
+
+execution-attempted
+  -- startup repair after interruption --> claimed
+  -- host dispatch attempt finishes --> executed
+
+dead-letter-pending
+  -- copy raw request and job archive, then clear working -->
+     transferred-to-dead-letter-directory
+```
+
+
+## POST-DISPATCH TRANSITIONS
+
+The job stores the dispatch outcome whether or not it has a reply-to
+location.
+
+```text
+executed with reply-to
+  -- send result --> reported --> done --> retired into done/
+
+executed without reply-to
+  -- no reply is needed --> done --> retired into done/
+```
+
+An active working job with status done requires only retirement into
+done/.  Runtime does not dispatch it again or attempt reply delivery.
+
+
+## READING THE MAP
+
+For each active job status, runtime identifies the one highest-priority
+action permitted by this map.  A transition must durably establish its
+next recoverable state before an irreversible external action begins.
