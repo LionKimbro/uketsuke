@@ -1,0 +1,72 @@
+The future control path.
+
+This is a design note.  It does not currently render into a Python
+module.
+
+
+## Current decisions
+
+Control messages are JSON files delivered to a configured `control/`
+directory.
+
+`control/` is passed to uketsuke at configuration time.  uketsuke
+creates or verifies that directory during startup, but does not create
+missing parent directories.
+
+Control messages are not ordinary host work requests.  They are
+operator commands for uketsuke itself.
+
+The runtime handles control messages only when there is no active
+working job.  Its intended priority order is:
+
+```text
+1. finish the active job, if there is one
+2. handle one control message, if there is one
+3. claim one inbox request, if there is one
+4. otherwise idle
+```
+
+This means control messages do not interrupt active work, but a
+continuous inbox cannot starve control work.
+
+
+## First motivating command
+
+One expected control command will request done-record retention work:
+remove old records from `done/` according to explicit operator
+criteria.
+
+The eventual command must make its retention rule explicit, record
+what it removed, and leave a durable completion record.  Its exact JSON
+shape and execution protocol are not specified yet.
+
+
+## `QUIT`
+
+Another expected control command is `QUIT`.
+
+When runtime handles `QUIT`, it sets both `g["quit"]` and
+`panel["quit"]` to `True`.  After that, runtime refuses to perform any
+further receptionist action.
+
+`do_tick()` returns `True` while the host should call it again, and
+returns `False` when uketsuke is done.  The turn that accepts `QUIT`
+therefore returns `False`, as do any later calls.  An idle turn still
+returns `True` and records `panel["last-operation"]` as `"idle"`.
+
+This supports a host loop such as:
+
+```python
+while uketsuke.runtime.do_tick():
+    pass
+```
+
+
+## Not decided yet
+
+- the JSON structure of a control message
+- how a control message is claimed, completed, or retained
+- the location and shape of its completion record
+- the command vocabulary beyond done-record retention
+- whether some future control commands need a different priority
+- operator authentication or authorization
