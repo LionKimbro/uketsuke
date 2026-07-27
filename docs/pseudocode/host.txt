@@ -1,0 +1,32 @@
+rendered file: src\uketsuke\host.py
+
+
+a simple wrapper around the configured host functions
+
+
+OWNS
+  calling the host functions
+
+READS
+  state.configuration.host-functions
+
+CALLS
+  state.configuration.host-functions.*
+
+MAY SAFELY ASSUME
+  that state.configuration is set up and valid
+  that the function targets work as intended
+
+MUST NOT ASSUME
+
+ENSURES
+
+DOES NOT OWN
+  setting up configuration of the host functions
+  storing pointers to the host functions
+
+-----------------
+
+
+just make a straightforward wrapper for state.configuration.host-functions
+

@@ -64,12 +64,8 @@ def do_tick():
 
     g["operation"] = identify_what_needs_to_be_done()
 
-    if g["operation"] is None:
-        panel["last-operation"] = "idle"
-
-    otherwise:
-        perform g["operation"]
-        set panel["last-operation"] to the descriptive name of g["operation"]
+    perform g["operation"]
+    set panel["last-operation"] to the descriptive name of g["operation"]
 
     return True if we continue, False if the system is now in the quit state
 
@@ -81,6 +77,7 @@ def clear_the_observation_facts_for_this_new_turn():
 
 
 def identify_what_needs_to_be_done():
+    ask jobs to read the current active job, if there is one
     examine the active job and inbox according to the planned priority order
 
     if the active job has status "dead-letter-pending":
@@ -101,7 +98,7 @@ def identify_what_needs_to_be_done():
 
     if there is an active job that needs work:
         TEMPORARY, FOR THE CURRENT IMPLEMENTATION CYCLE:
-          return no operation; the runtime idles because it does not yet
+          return "idle"; the runtime idles because it does not yet
           know how to perform the active job's work
 
     if there is a result that needs to be sent:
@@ -114,7 +111,7 @@ def identify_what_needs_to_be_done():
     if there is an inbox message available to claim:
         return perform_operation_claiming_an_inbox_request
 
-    return None
+    return "idle"
 
 
 def perform_operation_claiming_an_inbox_request():
