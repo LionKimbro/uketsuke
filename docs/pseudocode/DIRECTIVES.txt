@@ -1,0 +1,15 @@
+
+
+
+Do not extend, reinterpret, or improve the architecture.
+
+Implement exactly the responsibilities described by each pseudocode
+module, under its stated assumptions, while satisfying its ENSURES
+section and respecting its exclusions.
+
+Preserve the module boundaries, state ownership, named operations,
+control flow, and delegation boundaries expressed in the pseudocode.
+
+When implementation details are absent, choose the smallest local
+implementation that does not create a new architectural concept.
+

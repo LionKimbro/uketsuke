@@ -149,7 +149,7 @@
     "turn-function": "The exact public function name is not fixed yet. Conceptually it is a reconcile/do-something operation that inspects the filesystem and performs at most one meaningful lifecycle action.",
     "priority-order": [
       "Reconcile an unfinished response obligation.",
-      "If no response obligation needs work, find and execute one request-file.",
+      "If no response obligation needs work, receive and claim one new request-file from inbox/.",
       "If neither exists, report that there is no work to do."
     ],
     "response-reconciliation-turn": [

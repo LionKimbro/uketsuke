@@ -30,6 +30,11 @@
       "designation": "required",
       "reason": "Program with this philosophy of Globals."
     },
+    "style-card-function-names": {
+      "selected": true,
+      "designation": "required",
+      "reason": "When creating functions, name them like this."
+    },
     "style-card-function-args": {
       "selected": true,
       "designation": "required",
@@ -59,11 +64,6 @@
       "selected": false,
       "designation": "recommended",
       "reason": "A condensed version of the JSON documentation-writing guide; read this for the essentials when the full guide is more than you need."
-    },
-    "softspec": {
-      "selected": false,
-      "designation": "recommended",
-      "reason": "Read this when specifying data structures in JSON documents; SoftSpec is the preferred approach."
     },
     "softspec-v3": {
       "selected": true,

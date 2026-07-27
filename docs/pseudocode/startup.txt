@@ -1,0 +1,71 @@
+rendered file: src\uketsuke\startup.py
+
+OWNS
+  first time setup and initialization
+  startup repair of interrupted system transitions
+
+READS
+  configured paths and host durability operations
+  staged replacement job file
+
+CALLS
+  host copy-file-and-sync via fsio
+  host delete-file-and-sync via fsio
+  host read-file via fsio
+
+MAY SAFELY ASSUME
+  if the JSON for a job is fully readable, that it is valid data
+
+ENSURES
+  that the system is ready to operate, after initialize_program_at_startup_time_once is called
+
+DOES NOT OWN
+  job semantics
+  creation of staged replacement job transitions
+  ordinary runtime job transitions
+  filesystem primitives
+
+-----------------
+
+from . import state
+
+
+def initialize_program_at_startup_time_once(new_configuration):
+    state.initialize_configuration_at_startup_time(new_configuration)
+    repair_system_from_potentially_crashed_state()
+
+
+def repair_system_from_potentially_crashed_state():
+    heal_incomplete_job_transition()
+
+
+def heal_incomplete_job_transition():
+    (purpose: resolve the residue left by one specific interrupted transition)
+    
+    look for the staged replacement job file
+    
+    if no staged replacement exists:
+        return
+    
+    if it is not completely parsable JSON:
+        delete it
+	(durably sync the containing directory)
+        return
+
+    copy the staged replacement to/over the authoritative job file
+    (sync the authoritative job file)
+    
+    delete the now-unnecessary staged replacement job file
+    (durably sync the containing directory)
+
+
+-----------------
+
+NOTE 1:
+We do not rely on os.replace(staged, authoritative) because it is not durable!
+"...and because ordinary Python os.replace() does not request MOVEFILE_WRITE_THROUGH, its return does not by itself establish that the rename metadata survived a sudden power loss. Microsoft exposes MOVEFILE_WRITE_THROUGH specifically to delay return until the operation has been flushed."
+So, instead, we (A) copy-with-sync, (B) delete-with-sync.
+
+NOTE 2:
+The host API will supply functions for copy-and-sync, and delete-and-sync, so this will be one instruction.
+

@@ -60,7 +60,7 @@ Every turn follows the same priority order:
 
 1. Finish unfinished response work.
 2. Resolve unfinished or interrupted execution work.
-3. Receive and execute one new request from the inbox.
+3. Receive one new request from the inbox.
 4. Perform maintenance and upkeep.
 5. Report that there is no work to do.
 
@@ -69,7 +69,7 @@ request still has an unresolved response obligation. Durable completion
 means both the work and the required answer have been brought to a known
 state.
 
-## The living job
+## Facts the living job must remember
 
 When uketsuke claims a request, it creates a current job record. The job
 record is the machine's working memory for one request. It is a Python
@@ -102,15 +102,19 @@ The request path in the job record is a safeguarded working reference. It
 exists while uketsuke is resolving the request and may be removed after a
 terminal outcome record is durable.
 
-## A normal execution
+## Receiving a request and executing it later
 
-When no response obligation has priority, uketsuke looks for one new
-request.
+When no response obligation or unfinished execution has priority, uketsuke
+looks for one new request.
 
-It claims the request and constructs its current job record. Claiming is
+It claims one request and constructs its current job record. Claiming is
 the moment responsibility changes: before the claim, the request is new
 incoming work; after the claim, uketsuke is responsible for deciding what
 happened to it.
+
+Receiving a request does not also execute it in the same turn. The newly
+claimed job becomes unfinished execution work, which the next turn can
+resolve.
 
 uketsuke asks the host's `get_key(request_file, KEY)` function for the
 message facts needed by the machine. Typical facts include:
@@ -120,8 +124,9 @@ MESSAGE_ID
 RESPONSE_ADDRESS
 ```
 
-The host's `execute_job(job)` function then interprets the request,
-selects the task, extracts parameters, and performs the task.
+On a later execution turn, the host's `execute_job(job)` function
+interprets the request, selects the task, extracts parameters, and performs
+the task.
 
 If execution returns normally, the returned value becomes the response
 data. uketsuke records a successful outcome and enters the response

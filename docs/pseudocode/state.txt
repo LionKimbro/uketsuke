@@ -1,0 +1,47 @@
+rendered file: src\uketsuke\state.py
+
+OWNS
+  global data of broad import
+    - system configuration
+
+READS
+
+CALLS
+
+DOES NOT OWN
+  mechanism-specific global data
+
+MAY SAFELY ASSUME
+
+-----------------
+
+
+configuration = {
+    "host-os-functionality": {
+        "read-file": None,          # read-file(pathlib.Path)
+	"write-and-sync": None,     # write-and-sync(pathlib.Path, content-bytes)
+        "copy-and-sync": None,      # copy-and-sync(pathlib.Path src, pathlib.Path dest)
+	"delete-and-sync": None     # delete-and-sync(pathlib.Path)
+    },
+    "host-functions": {
+        "characterize-job": None,    # fn(job) -> "retry-safe", "do-not-retry", "unknown"
+                                     # "unknown": reject the job; do not attempt execution ever
+                                     # "do-not-retry": record an interrupted outcome, do not re-execute
+				     # "retry-safe": may attempt re-execution
+	"dispatch-job": None     # fn(job) -> None (ok) or raises error (interrupted)
+    },
+    "directories": {
+        "inbox": None,               # pathlib.Path
+	"work-space": None           # pathlib.Path
+    }
+}
+
+
+def initialize_configuration_at_startup_time(new_configuration):
+    configuration.clear()
+    configuration.update(new_configuration)
+    validate that all expected keys are present
+
+
+-----------------
+

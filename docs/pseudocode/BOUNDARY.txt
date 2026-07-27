@@ -1,0 +1,69 @@
+
+
+## configured host read-file operation
+
+```
+accepts
+  src
+    a path value (str)
+
+returns
+  bytes
+
+raises
+  FileNotFoundError if the file does not exist
+  any other host failure without translation
+```
+
+## configured host write-and-sync operation
+
+```
+accepts
+  destination
+    a path value (str)
+
+  content
+    bytes
+
+returns
+  nothing
+
+raises
+  any host failure without translation
+```
+
+
+## configured host copy-and-sync operation
+
+```
+accepts
+  src
+    a path value (str)
+
+  destination
+    a path value for a different path (str)
+
+returns
+  nothing
+
+raises
+  any host failure without translation
+```
+
+
+## configured host delete-and-sync operation
+
+```
+accepts
+  path
+    a path value (str)
+
+returns
+  nothing
+
+raises
+  FileNotFoundError if the file does not exist
+  any other host failure without translation
+```
+
+

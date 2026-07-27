@@ -1,0 +1,107 @@
+rendered file: src\uketsuke\fsio.py
+
+The codec and durability gateway.
+
+OWNS
+  JSON encoding and decoding
+  text encoding and decoding (if we need it)
+  issuing the command to read binary data from a file
+  issuing the command to write binary data to a file & sync it
+  issuing the command to copy a file & sync it
+  issuing the command to delete a file & sync it
+
+READS
+  state.configuration.host-os-functionality
+
+CALLS
+  configured host read-file operation
+  configured host write-and-sync operation
+  configured host copy-and-sync operation
+  configured host delete-and-sync operation
+
+MAY SAFELY ASSUME
+  that the system is configured by the time it is called
+  that the configuration is correct and that it works
+
+ENSURES
+  values passed for writing are encoded in the requested form
+  configured host durability operations receive byte content
+  successful write, copy, and delete calls have reached the
+    durability boundary promised by the host
+
+DOES NOT OWN
+  durable recovery schemes
+  the actual Python code that opens a Python file
+  the actual Python code that writes to a Python file
+  the actual Python code that interacts with the os or sys modules
+  the actual Python code that syncs a file or a folder
+  whether a file should be copied
+  whether a file is recoverable
+  whether a file should exist
+  how Windows or Linux achieves durability
+
+SUPPORTED FLAGS
+  exactly one representation:
+      json
+      text
+      bytes
+
+  optional behavior:
+      required
+
+-----------------
+
+def _check_flags(flags):
+    raise an error if flags does not contain one of "text", "bytes", "json"
+    raise an error if flags contain more than one of "text", "bytes", or "json"
+    raise an error if there's an unexpected flag
+
+
+def read_file(src, flags):
+    _check_flags(flags)
+    
+    fn = state.configuration["host-os-functionality"]["read-file"]
+    
+    value = None
+    try:
+        value = fn(src)
+    except:
+        if "required" in flags:
+	    raise
+
+    if "json" in flags:
+        return JSON decoded value
+
+    if "text" in flags:
+        return text utf-8 decoded value
+
+    if "bytes" in falgs:
+        return bytes
+
+    raise ValueError
+
+
+def write_file(destination, value, flags):
+    _check_flags(flags)
+    
+    if "bytes" in flags:
+        content = value
+	
+    if "text" in flags:
+        content = value.encode("utf-8")
+    
+    if "json" in flags:
+        content = json encoding of value
+
+    fn = state.configuration["host-os-functionality"]["write-and-sync"]
+    fn(destination, bytes)
+
+
+def copy_file(src, dest):
+    delegate to host-os-functionality ("copy-and-sync")
+
+def delete_file(path):
+    delegate to host-os-functionality ("delete-and-sync")
+
+-----------------
+

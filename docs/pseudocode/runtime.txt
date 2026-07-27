@@ -1,0 +1,36 @@
+
+OWNS
+    resolving one turn
+    accepting an inbox/ item, turning it into a job
+    dispatching a job
+    sending the response for the job
+    retiring the job
+    
+    attention priority
+
+READS
+
+CALLS
+
+DOES NOT OWN
+
+
+-----------------
+
+
+
+g = {
+    "op-hint": None
+}
+
+
+
+def do_tick():
+    next_work = g["op-hint"] or identify_what_needs_to_be_done()
+    next_work()
+
+
+def identify_what_needs_to_be_done():
+    look inside the working/ directory
+    if there's a job there
+	
