@@ -5,8 +5,11 @@ The one-turn receptionist machine.
 OWNS
   resolving one uketsuke turn
   identifying and performing the absolute highest-priority available
-    receptionist action
+  receptionist action
   the priority order among pending receptionist actions
+  dispatching an active job through the configured host
+  sending a completed job's result
+  retiring a job after its result has been sent
   globally inspectable facts about the most recent turn
 
 READS
@@ -31,9 +34,8 @@ DOES NOT OWN
   the host program's forever loop
   scheduling, sleeping, or process lifetime
   durable job-record transitions
-  the mechanics of interpreting or dispatching an opaque request
-  the mechanics of reply delivery
-  the mechanics of retiring a done job
+  filesystem primitives
+  the host's interpretation of an opaque request or the work it performs
 
 -----------------
 
