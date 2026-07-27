@@ -57,22 +57,43 @@ been copied into working and before the initial job record is durably
 created.
 
 
-### When to dead-letter
+## Failed summary outcome
 
 If the host cannot recognize or summarize the request, uketsuke must
 preserve both the raw request bytes and a job record explaining the
 failure in `dead-letter/`.
 
-Possible timing:
+The failed summary immediately creates a `dead-letter-pending` job.
+That job has `request-id: None`, the captured error, and the initial
+history entry whose timestamp determines its later dead-letter
+filenames.
 
-- dead-letter immediately when summarization fails;
-- retain the request in working until a later execution-related step
-  determines that it cannot be handled.
+
+## No `summarized` status
+
+`claimed` means that the request was successfully summarized and is
+ready for execution.  A summary failure does not become claimed.
 
 
-### Whether to add a `summarized` status
+## Planned claim procedure
 
-The current job status vocabulary has `claimed` as the state before
-execution.  A separate `summarized` state would make the host summary
-step independently visible and recoverable, but would add another
-durable transition and another startup/reconciliation case.
+```text
+list the immediate inbox files with their last-modified times
+select the file with the highest last-modified time
+
+remember its filename as request-original-filename
+copy it to working/opaque-request-file
+
+ask the host to summarize working/opaque-request-file
+
+if the summary succeeds:
+    prepare successful-claim info
+    jobs.create_new(info)
+
+if the summary raises:
+    capture its exception trace
+    prepare failed-summary info
+    jobs.create_new(info)
+
+delete the selected original inbox file
+```
