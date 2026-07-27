@@ -58,12 +58,48 @@ def read_the_current_active_job_if_there_is_one():
 
 
 def create_new(info):
-    create a new job dictionary from:
-        the supplied info
-        the jobs machine's knowledge of a fully populated claimed job
+    create a new job dictionary from the supplied info and the jobs
+    machine's knowledge of a fully populated initial job
 
     place the new job in g["job"]
     durably_replace_the_current_job_with_its_new_state()
+
+
+INFO FOR A SUCCESSFULLY SUMMARIZED CLAIM
+  request-file-path
+    the full path to the working opaque request file
+  request-original-filename
+    the filename the request had in inbox
+  request-id
+    from the host summary
+  reply-to
+    from the host summary, when present
+  status
+    "claimed"
+  completion-status
+    None
+  error
+    None
+  initial history entry
+    records the successful claim
+
+
+INFO FOR A FAILED SUMMARY
+  request-file-path
+    the full path to the working opaque request file
+  request-original-filename
+    the filename the request had in inbox
+  request-id
+    None
+  status
+    "dead-letter-pending"
+  completion-status
+    "dead-letter"
+  error
+    the captured summarize-request exception trace
+  initial history entry
+    records the failed summarize-request and its captured error
+    its timestamp determines the dead-letter artifact filenames
 
 
 def durably_replace_the_current_job_with_its_new_state():
