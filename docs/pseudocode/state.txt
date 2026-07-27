@@ -27,7 +27,8 @@ configuration = {
     },
     "host-functions": {
 	"summarize-request": None, # summarize-request(pathlib.Path) -> summary dictionary
-	"dispatch-job": None      # dispatch-job(job) -> JSON-safe value or raises error
+	"dispatch-job": None,     # dispatch-job(job) -> JSON-safe value or raises error
+	"send-reply": None        # send-reply(job) -> None or raises error
     },
     "directories": {
         "inbox": None,               # pathlib.Path

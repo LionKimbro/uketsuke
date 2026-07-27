@@ -37,7 +37,8 @@ executed
   its completion-status records success or fail
 
 reported
-  the completed job's result was sent to its reply-to destination
+  the completed job's response or error was sent to its reply-to
+  destination
 
 done
   the job no longer needs any receptionist work

@@ -30,3 +30,15 @@ DOES NOT OWN
 
 just make a straightforward wrapper for state.configuration.host-functions
 
+
+def summarize_request(request_file_path):
+    call configured summarize-request
+
+
+def dispatch_job(job):
+    call configured dispatch-job
+
+
+def send_reply(job):
+    call configured send-reply
+

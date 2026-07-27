@@ -30,8 +30,9 @@ list-files       callable(pathlib.Path) -> list[file description]
 ### HOST-FUNCTIONS
 
 ```text
-summarize-request  callable(pathlib.Path) -> request summary dictionary
+summarize-request  callable(pathlib.Path) -> request ID string
 dispatch-job       callable(job dictionary) -> JSON-safe value
+send-reply         callable(job dictionary) -> None
 ```
 
 ### DIRECTORIES
@@ -129,29 +130,64 @@ raises: host failure unchanged
 
 ### SUMMARIZE-REQUEST
 
-accepts: request-file-path (path)
-returns: a dictionary of request facts that interest uketsuke
-ensures: the dictionary contains "request-id", the request that initiated the job
-returns when present: "reply-to", the location to which uketsuke should send a reply
-returns when absent: no "reply-to"; this job skips the reply process
-host owns: interpreting the opaque request file and choosing any additional facts
-rule: there is never more than one job for a request-id
-raises: an error if the request is malformed or not recognized; otherwise host failure unchanged
-uketsuke does: convert a raised error to text and store it in job["error"]
+|               |                                                                                        |
+| ------------- | -------------------------------------------------------------------------------------- |
+| **Signature** | `summarize-request(request_file_path: pathlib.Path)`                                   |
+| **Returns**   | `request-id` (`str`)                                                                   |
+| **Raises**    | Any exception if the request is malformed, unrecognized, or otherwise incomprehensible |
+
+Examines the opaque request at `request_file_path` to decide whether
+Uketsuke can accept it, and returns its `request-id` if it can.
+Otherwise, it raises an exception.
+
+The host owns interpreting the opaque request. Uketsuke records any
+resulting error in the dead-letter job.
+
+There is never more than one job for a given `request-id`.
 
 
 ### DISPATCH-JOB
 
-accepts: job (the current job record)
-host owns: interpreting the opaque request, selecting work, and performing it
-host must: make dispatch idempotent by job["request-id"]
-returns: a JSON-safe value
-JSON-safe: None, string, number, bool, list, dict, and structures made from them
-uketsuke does: store a successful return value in job["response"]
-uketsuke does: convert a raised error to text and store it in job["error"]
-uketsuke does not: check that a return value is JSON-safe
-raises: host error unchanged
+|               |                                                            |
+| ------------- | ---------------------------------------------------------- |
+| **Signature** | `dispatch-job(job: dict)`                                  |
+| **Returns**   | A JSON-safe response value                                 |
+| **Raises**    | Any exception if the host cannot complete the job          |
+
+Receives the current job record and performs its requested work. The
+host owns interpreting the opaque request and choosing the work to do.
+
+Uketsuke stores a normal return value in `job["response"]`. It records a
+raised exception in `job["error"]`. The host must return only JSON-safe
+data: `None`, strings, numbers, booleans, lists, dictionaries, and
+structures composed from them. Uketsuke does not validate that promise.
+
+The host must make dispatch idempotent by `job["request-id"]`.
 
 idempotence is essential: a crash can occur after dispatch begins but
 before uketsuke records its result.  Startup then resets that job for
 re-execution, so dispatch-job may receive the same request-id again.
+
+
+### SEND-REPLY
+
+|               |                                                                       |
+| ------------- | --------------------------------------------------------------------- |
+| **Signature** | `send-reply(job: dict)`                                               |
+| **Returns**   | `None`                                                                |
+| **Raises**    | Any exception if the host cannot complete its reply-delivery attempt  |
+
+Receives an executed job and determines whether a reply is wanted. If
+one is wanted, the host constructs and delivers the opaque reply in its
+own format. If none is wanted, it returns normally without sending one.
+
+The host owns interpreting the opaque request and all reply structure
+and delivery mechanics. Uketsuke marks a normal return as reported. It
+records a raised exception in `job["error"]` and leaves the job executed
+for another delivery attempt.
+
+The host must make reply delivery idempotent by `job["request-id"]`.
+
+idempotence is essential: a crash can occur after reply delivery begins
+but before uketsuke records that it was reported, so send-reply may
+receive the same request-id again.

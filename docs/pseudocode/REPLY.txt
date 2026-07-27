@@ -1,0 +1,46 @@
+The host reply-delivery operation for one executed job.
+
+This is a design note.  It does not currently render into a Python
+module.  Runtime selects this operation when JOB-LIFECYCLE.txt says an
+executed job with reply-to requires it.
+
+OWNS
+  calling the host reply sender for the active job
+  recording whether the delivery was reported or failed
+
+READS
+  the active executed job
+  its reply-to, response when present, error when present, and request-id
+
+CALLS
+  host.send_reply
+  jobs.append_result
+
+MAY SAFELY ASSUME
+  that the active job has status "executed"
+  that it has reply-to
+
+ENSURES
+  that a successful host reply delivery is durably recorded as reported
+  that a failed host reply delivery remains available for another attempt
+
+-----------------
+
+
+def perform_operation_sending_the_job_reply():
+    call host.send_reply(active job)
+
+    if the host returns normally:
+        set the active job status to "reported"
+        append a durable history entry recording successful reply delivery
+
+    if the host raises an exception:
+        leave the active job status as "executed"
+        append a durable history entry recording failed reply delivery and
+        its captured exception trace
+
+
+OPERATION IDENTITY
+
+  send-job-reply
+    the attempt to send an executed job's outcome to its reply-to

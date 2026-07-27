@@ -81,6 +81,7 @@ def identify_what_needs_to_be_done():
         follow JOB-LIFECYCLE.txt for the status map
         follow EXECUTION.txt when that operation is execution
         follow DEAD-LETTER.txt when that operation is dead-letter transfer
+        follow REPLY.txt when that operation is reply delivery
 
     if there is an inbox message available to claim:
         return "claim-inbox-request"
@@ -103,6 +104,11 @@ def perform_operation_executing_the_claimed_job():
 def perform_operation_completing_the_dead_letter_transition():
     follow the planned dead-letter procedure in DEAD-LETTER.txt
     set the operation's readable identity to "complete-dead-letter-transition"
+
+
+def perform_operation_sending_the_job_reply():
+    follow the planned reply procedure in REPLY.txt
+    set the operation's readable identity to "send-job-reply"
 
 
 def transition_to_the_quit_state():
