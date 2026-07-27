@@ -1,69 +1,99 @@
+# UKETSUKE BOUNDARY
+
+These are the host capabilities and directory facts that uketsuke
+receives through configuration.  The host owns the actual operating
+system work; uketsuke calls these operations through fsio or its
+configured host functions.
 
 
-## configured host read-file operation
+## DIRECTORY TREE
 
-```
-accepts
-  src
-    a path value (str)
+configuration provides:
 
-returns
-  bytes
-
-raises
-  FileNotFoundError if the file does not exist
-  any other host failure without translation
-```
-
-## configured host write-and-sync operation
-
-```
-accepts
-  destination
-    a path value (str)
-
-  content
-    bytes
-
-returns
-  nothing
-
-raises
-  any host failure without translation
+```text
+inbox       intended location of incoming opaque request files
+work-space  intended location of uketsuke's working tree
 ```
 
+startup creates or verifies:
 
-## configured host copy-and-sync operation
-
-```
-accepts
-  src
-    a path value (str)
-
-  destination
-    a path value for a different path (str)
-
-returns
-  nothing
-
-raises
-  any host failure without translation
+```text
+inbox/
+work-space/
+  working/
+  done/
 ```
 
-
-## configured host delete-and-sync operation
-
-```
-accepts
-  path
-    a path value (str)
-
-returns
-  nothing
-
-raises
-  FileNotFoundError if the file does not exist
-  any other host failure without translation
-```
+directory rule: uketsuke creates the configured inbox and work-space
+directories when absent, but never creates their missing parents.
 
 
+## HOST FILESYSTEM OPERATIONS
+
+### READ-FILE
+
+accepts: src (path)
+returns: bytes
+raises: FileNotFoundError if absent; otherwise host failure unchanged
+
+
+### WRITE-AND-SYNC
+
+accepts: destination (path); content (bytes)
+returns: nothing
+ensures: a successful write has reached the host's durability boundary
+raises: host failure unchanged
+
+
+### COPY-AND-SYNC
+
+accepts: src (path); destination (different path)
+returns: nothing
+ensures: a successful copy has reached the host's durability boundary
+raises: host failure unchanged
+
+
+### DELETE-AND-SYNC
+
+accepts: path (path)
+returns: nothing
+ensures: a successful deletion has reached the host's durability boundary
+raises: FileNotFoundError if absent; otherwise host failure unchanged
+
+
+### MKDIR-AND-SYNC
+
+accepts: path (path)
+allows: path already exists
+requires: an absent path has an existing immediate parent
+does not: create absent parent directories
+returns: nothing
+ensures: path exists; a new directory has reached the host's durability boundary
+raises: host failure unchanged
+
+
+## HOST FUNCTIONS
+
+### SUMMARIZE-REQUEST
+
+accepts: request-file-path (path)
+returns: a dictionary of request facts that interest uketsuke
+ensures: the dictionary contains "request-id", the request that initiated the job
+returns when present: "reply-to", the location to which uketsuke should send a reply
+returns when absent: no "reply-to"; this job skips the reply process
+host owns: interpreting the opaque request file and choosing any additional facts
+rule: there is never more than one job for a request-id
+raises: an error if the request is malformed or not recognized; otherwise host failure unchanged
+uketsuke does: convert a raised error to text and store it in job["error"]
+
+
+### DISPATCH-JOB
+
+accepts: job (the current job record)
+host owns: interpreting the opaque request, selecting work, and performing it
+returns: a JSON-safe value
+JSON-safe: None, string, number, bool, list, dict, and structures made from them
+uketsuke does: store a successful return value in job["response"]
+uketsuke does: convert a raised error to text and store it in job["error"]
+uketsuke does not: check that a return value is JSON-safe
+raises: host error unchanged

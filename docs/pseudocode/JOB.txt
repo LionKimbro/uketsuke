@@ -1,0 +1,172 @@
+The working job record.
+
+This note records only the job data that is currently decided.  It is
+not yet a complete job schema.
+
+
+## Current record shape
+
+```
+job = {
+    "request-file-path": full path to the working request file,
+    "status": one current lifecycle status,
+    "completion-status": one completion result, when there is one,
+    "request-id": the request identifier obtained from the request file,
+    "reply-to": the reply location, when the request provides one,
+    "response": present only when a response has been received,
+    "error": None or the current error information,
+    "history": a durable log of job operations,
+}
+```
+
+uketsuke copies selected facts from the host's request summary into the
+job record.  It does not retain the entire summary dictionary.
+
+
+## Job location
+
+There is only ever one active working job.  Its authoritative job
+record is `working/job.json`.
+
+The job remains in the `working/` directory for its entire active
+lifecycle.  Its status changes from `claimed` through `done` without
+moving the job between lifecycle directories.
+
+After it is `done`, the job can be retired from `working/` into the
+`done/` directory.  The exact retirement transition is not specified
+yet.
+
+`working/job-nextstate.json` is the staged replacement record used
+when durably changing `working/job.json`.
+
+
+## `request-file-path`
+
+The full path to the actual opaque request file for this job.
+
+This is an honest-to-god file.  uketsuke does not interpret its
+contents as part of the job-record mechanism.
+
+When an inbox item is claimed, it is durably and atomically moved into
+the working area.  Its working name becomes `opaque-request-file`.
+The `request-file-path` then identifies that working file.
+
+
+## `status`
+
+The current lifecycle position of the job.
+
+The currently named status vocabulary is:
+
+```
+claimed
+execution-attempted
+executed
+reported
+done
+```
+
+The intended ordinary progression is:
+
+```
+claimed -> execution-attempted -> executed -> reported -> done
+```
+
+The exact rules for every transition, including recovery after an
+interruption, are not specified here yet.
+
+
+## `completion-status`
+
+The eventual result classification for the job.
+
+The currently named vocabulary is:
+
+```
+success
+fail
+rejected
+dead-letter
+```
+
+Its initial value, its relationship to each lifecycle status, and
+whether it is absent or explicitly empty before completion are still
+to be decided.
+
+
+## `request-id`
+
+The identifier of the request that initiated this job.
+
+uketsuke obtains it from the summary returned by the configured host
+`summarize-request` function.  The host determines how to interpret
+the opaque request file.
+
+There is never more than one job for a request-id.
+
+
+## `reply-to`
+
+The location to which uketsuke should send the job's reply.
+
+This key is copied from the host request summary only when the request
+provides a reply location.  Its absence means the job skips the reply
+process.
+
+## `response`
+
+This key appears when `dispatch-job` returns successfully.  Its value
+is the JSON-safe value returned by the host dispatcher, including
+`None` when that is the returned value.
+
+
+## `error`
+
+This key is always present.  Its initial value is `None`.
+
+It holds the current error information when there is one.  The shape
+of non-`None` error information is not specified yet.
+
+
+## `history`
+
+The job has a durable history log.  Every operation performed with the
+job appends and durably writes one new history entry.
+
+For dispatch, the history establishes an execution boundary:
+
+```text
+before dispatch-job begins: durably record that execution is being attempted
+after dispatch-job returns or raises: durably record the known result or error
+```
+
+After a crash, this distinguishes a job whose dispatch was never
+attempted, one whose dispatch may have begun but has an unknown
+outcome, and one with a known outcome.
+
+The current intended entry shape is:
+
+```
+{
+    "timestamp": "<timestamp>",
+    "operation": "...",
+    "result": "...",
+    "error": None or "...",
+}
+```
+
+This history subsumes separate attempt counts and timestamp fields.
+The timestamp representation and the detailed vocabulary for operation
+and result are not specified yet.
+
+
+## Not job fields yet
+
+The following may become useful later, but are deliberately not part
+of the job record now:
+
+- response-delivery evidence
+- a handler or task selection: interpreting the formerly-inbox request
+  file and selecting work is entirely the host environment's job
+- retry classification: uketsuke always dispatches a job
+- a job-record format or version marker

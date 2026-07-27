@@ -20,15 +20,13 @@ configuration = {
     "host-os-functionality": {
         "read-file": None,          # read-file(pathlib.Path)
 	"write-and-sync": None,     # write-and-sync(pathlib.Path, content-bytes)
-        "copy-and-sync": None,      # copy-and-sync(pathlib.Path src, pathlib.Path dest)
-	"delete-and-sync": None     # delete-and-sync(pathlib.Path)
+	"copy-and-sync": None,      # copy-and-sync(pathlib.Path src, pathlib.Path dest)
+	"delete-and-sync": None,    # delete-and-sync(pathlib.Path)
+	"mkdir-and-sync": None           # mkdir-and-sync(pathlib.Path)
     },
     "host-functions": {
-        "characterize-job": None,    # fn(job) -> "retry-safe", "do-not-retry", "unknown"
-                                     # "unknown": reject the job; do not attempt execution ever
-                                     # "do-not-retry": record an interrupted outcome, do not re-execute
-				     # "retry-safe": may attempt re-execution
-	"dispatch-job": None     # fn(job) -> None (ok) or raises error (interrupted)
+	"summarize-request": None, # summarize-request(pathlib.Path) -> summary dictionary
+	"dispatch-job": None      # dispatch-job(job) -> JSON-safe value or raises error
     },
     "directories": {
         "inbox": None,               # pathlib.Path
@@ -37,11 +35,10 @@ configuration = {
 }
 
 
-def initialize_configuration_at_startup_time(new_configuration):
+def initialize_configuration_when_the_program_starts_up(new_configuration):
     configuration.clear()
     configuration.update(new_configuration)
     validate that all expected keys are present
 
 
 -----------------
-

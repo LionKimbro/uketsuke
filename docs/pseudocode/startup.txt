@@ -6,9 +6,11 @@ OWNS
 
 READS
   configured paths and host durability operations
-  staged replacement job file
+  working/job.json, the authoritative active job record
+  working/job-nextstate.json, the staged replacement job record
 
 CALLS
+  paths.ensure_that_the_necessary_directories_exist_when_the_program_starts_up
   host copy-file-and-sync via fsio
   host delete-file-and-sync via fsio
   host read-file via fsio
@@ -27,11 +29,12 @@ DOES NOT OWN
 
 -----------------
 
-from . import state
+from . import paths, state
 
 
 def initialize_program_at_startup_time_once(new_configuration):
-    state.initialize_configuration_at_startup_time(new_configuration)
+    state.initialize_configuration_when_the_program_starts_up(new_configuration)
+    paths.ensure_that_the_necessary_directories_exist_when_the_program_starts_up()
     repair_system_from_potentially_crashed_state()
 
 
@@ -41,8 +44,11 @@ def repair_system_from_potentially_crashed_state():
 
 def heal_incomplete_job_transition():
     (purpose: resolve the residue left by one specific interrupted transition)
+
+    authoritative_job_file = paths.path("job")
+    staged_replacement_job_file = paths.path("job-nextstate")
     
-    look for the staged replacement job file
+    look for staged_replacement_job_file
     
     if no staged replacement exists:
         return
@@ -52,7 +58,7 @@ def heal_incomplete_job_transition():
 	(durably sync the containing directory)
         return
 
-    copy the staged replacement to/over the authoritative job file
+    copy staged_replacement_job_file to/over authoritative_job_file
     (sync the authoritative job file)
     
     delete the now-unnecessary staged replacement job file
@@ -68,4 +74,3 @@ So, instead, we (A) copy-with-sync, (B) delete-with-sync.
 
 NOTE 2:
 The host API will supply functions for copy-and-sync, and delete-and-sync, so this will be one instruction.
-

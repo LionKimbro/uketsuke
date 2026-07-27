@@ -7,9 +7,10 @@ configuration = {
         "write-and-sync": None,
         "copy-and-sync": None,
         "delete-and-sync": None,
+        "mkdir-and-sync": None,
     },
     "host-functions": {
-        "characterize-job": None,
+        "summarize-request": None,
         "dispatch-job": None,
     },
     "directories": {
@@ -19,7 +20,7 @@ configuration = {
 }
 
 
-def initialize_configuration_at_startup_time(new_configuration):
+def initialize_configuration_when_the_program_starts_up(new_configuration):
     configuration.clear()
     configuration.update(new_configuration)
     validate_that_all_expected_configuration_keys_are_present()
@@ -32,9 +33,10 @@ def validate_that_all_expected_configuration_keys_are_present():
             "write-and-sync",
             "copy-and-sync",
             "delete-and-sync",
+            "mkdir-and-sync",
         },
         "host-functions": {
-            "characterize-job",
+            "summarize-request",
             "dispatch-job",
         },
         "directories": {

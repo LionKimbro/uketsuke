@@ -1,0 +1,83 @@
+rendered file: src\uketsuke\paths.py
+
+The configured-paths machine.
+
+OWNS
+  the derived paths inside the configured work-space
+    - working
+    - done
+    - job
+    - job-nextstate
+  creating or verifying the required work-space directory tree
+  creating or verifying that the inbox directory exists
+
+READS
+  state.configuration.directories
+
+CALLS
+  fsio's operation for ensuring a directory exists
+
+MAY SAFELY ASSUME
+  that state.configuration is set up and valid
+  that the directories named in state.configuration["directories"] are
+    the intended folder locations
+
+MUST NOT ASSUME
+  that the configured inbox or work-space directories exist
+  that the derived working/ or done/ directories exist
+
+ENSURES
+  that the configured inbox and work-space directories exist after
+    ensure_that_the_necessary_directories_exist_when_the_program_starts_up
+    is called
+  that the working/ and done/ directories exist after
+    ensure_that_the_necessary_directories_exist_when_the_program_starts_up
+    is called
+  that path(name) returns the configured or derived path for every
+    supported name
+
+DOES NOT OWN
+  system configuration
+  job semantics
+  filesystem primitives
+  that the parent folders of the configured inbox and work-space
+    directories exist
+
+-----------------
+
+
+paths = {
+    "working": None,
+    "done": None,
+    "job": None,
+    "job-nextstate": None,
+}
+
+
+def ensure_that_the_necessary_directories_exist_when_the_program_starts_up():
+    inbox = state.configuration["directories"]["inbox"]
+    work_space = state.configuration["directories"]["work-space"]
+
+    ask fsio to ensure that the configured inbox directory exists
+    ask fsio to ensure that the configured work-space directory exists
+
+    paths["working"] = work_space / "working"
+    paths["done"] = work_space / "done"
+    paths["job"] = paths["working"] / "job.json"
+    paths["job-nextstate"] = paths["working"] / "job-nextstate.json"
+
+    ask fsio to ensure that the working/ directory exists
+    ask fsio to ensure that the done/ directory exists
+
+
+def path(name):
+    if name is one of "inbox" or "work-space":
+        return state.configuration["directories"][name]
+
+    if name is one of "working", "done", "job", or "job-nextstate":
+        return paths[name]
+
+    raise an error for an unsupported path name
+
+
+-----------------

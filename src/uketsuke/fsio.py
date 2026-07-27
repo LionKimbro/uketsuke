@@ -67,3 +67,8 @@ def copy_file(src, destination):
 def delete_file(path):
     fn = state.configuration["host-os-functionality"]["delete-and-sync"]
     fn(path)
+
+
+def mkdir_and_sync(path):
+    fn = state.configuration["host-os-functionality"]["mkdir-and-sync"]
+    fn(path)
