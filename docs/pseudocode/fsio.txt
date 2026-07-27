@@ -10,6 +10,7 @@ OWNS
   issuing the command to copy a file & sync it
   issuing the command to delete a file & sync it
   issuing the command to create a directory & sync it
+  issuing the command to list the files in a directory
 
 READS
   state.configuration.host-os-functionality
@@ -20,6 +21,7 @@ CALLS
   configured host copy-and-sync operation
   configured host delete-and-sync operation
   configured host mkdir-and-sync operation
+  configured host list-files operation
 
 MAY SAFELY ASSUME
   that the system is configured by the time it is called
@@ -105,7 +107,10 @@ def copy_file(src, dest):
 def delete_file(path):
     delegate to host-os-functionality ("delete-and-sync")
 
-provide an operation that asks the configured host to ensure a
-directory exists and is durably created if needed
+def mkdir_and_sync(path):
+    delegate to host-os-functionality ("mkdir-and-sync")
+
+def list_files(path):
+    delegate to host-os-functionality ("list-files")
 
 -----------------

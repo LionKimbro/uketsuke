@@ -22,7 +22,8 @@ configuration = {
 	"write-and-sync": None,     # write-and-sync(pathlib.Path, content-bytes)
 	"copy-and-sync": None,      # copy-and-sync(pathlib.Path src, pathlib.Path dest)
 	"delete-and-sync": None,    # delete-and-sync(pathlib.Path)
-	"mkdir-and-sync": None           # mkdir-and-sync(pathlib.Path)
+	"mkdir-and-sync": None,     # mkdir-and-sync(pathlib.Path)
+	"list-files": None          # list-files(pathlib.Path) -> list[pathlib.Path]
     },
     "host-functions": {
 	"summarize-request": None, # summarize-request(pathlib.Path) -> summary dictionary

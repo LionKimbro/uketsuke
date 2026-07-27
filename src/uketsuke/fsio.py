@@ -72,3 +72,8 @@ def delete_file(path):
 def mkdir_and_sync(path):
     fn = state.configuration["host-os-functionality"]["mkdir-and-sync"]
     fn(path)
+
+
+def list_files(path):
+    fn = state.configuration["host-os-functionality"]["list-files"]
+    return fn(path)

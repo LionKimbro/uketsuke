@@ -2,7 +2,7 @@
 
 import json
 
-from . import fsio, paths, state
+from . import fsio, jobs, paths, state
 
 
 def initialize_program_at_startup_time_once(new_configuration):
@@ -13,6 +13,7 @@ def initialize_program_at_startup_time_once(new_configuration):
 
 def repair_system_from_potentially_crashed_state():
     heal_incomplete_job_transition()
+    heal_interrupted_execution_job()
 
 
 def heal_incomplete_job_transition():
@@ -33,3 +34,20 @@ def heal_incomplete_job_transition():
         authoritative_job_file,
     )
     fsio.delete_file(staged_replacement_job_file)
+
+
+def heal_interrupted_execution_job():
+    jobs.read_the_current_active_job_if_there_is_one()
+
+    if jobs.g["job"] is None:
+        return
+
+    if jobs.g["job"]["status"] != "execution-attempted":
+        return
+
+    jobs.g["job"]["status"] = "claimed"
+    jobs.append_result(
+        "startup-repaired-interrupted-execution",
+        "reset-to-claimed-for-reexecution",
+        [],
+    )

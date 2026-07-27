@@ -60,6 +60,25 @@ class StartupTests(unittest.TestCase):
 
         self.assertFalse(paths.path("job-nextstate").exists())
 
+    def test_startup_resets_an_interrupted_execution_for_reexecution(self):
+        interrupted_job = {
+            "status": "execution-attempted",
+            "request-id": "request-1",
+            "error": None,
+            "history": [],
+        }
+        startup.initialize_program_at_startup_time_once(self.configuration)
+        paths.path("job").write_text(json.dumps(interrupted_job), encoding="utf-8")
+
+        startup.initialize_program_at_startup_time_once(self.configuration)
+
+        repaired_job = json.loads(paths.path("job").read_text(encoding="utf-8"))
+        self.assertEqual(repaired_job["status"], "claimed")
+        self.assertEqual(
+            repaired_job["history"][-1]["operation"],
+            "startup-repaired-interrupted-execution",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

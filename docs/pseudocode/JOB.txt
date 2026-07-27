@@ -9,6 +9,7 @@ not yet a complete job schema.
 ```
 job = {
     "request-file-path": full path to the working request file,
+    "request-original-filename": the request filename before it was claimed,
     "status": one current lifecycle status,
     "completion-status": one completion result, when there is one,
     "request-id": the request identifier obtained from the request file,
@@ -50,6 +51,16 @@ contents as part of the job-record mechanism.
 When an inbox item is claimed, it is durably and atomically moved into
 the working area.  Its working name becomes `opaque-request-file`.
 The `request-file-path` then identifies that working file.
+
+
+## `request-original-filename`
+
+The filename of the opaque request file before uketsuke claimed it from
+the inbox and renamed it to `opaque-request-file`.
+
+This preserves the original request provenance after its working name
+has become generic.  It is a filename only, not the original complete
+path.
 
 
 ## `status`

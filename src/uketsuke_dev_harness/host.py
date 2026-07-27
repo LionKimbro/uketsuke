@@ -13,6 +13,7 @@ def make_configuration(inbox, work_space):
             "copy-and-sync": copy_and_sync,
             "delete-and-sync": delete_and_sync,
             "mkdir-and-sync": mkdir_and_sync,
+            "list-files": list_files,
         },
         "host-functions": {
             "summarize-request": summarize_request,
@@ -54,6 +55,13 @@ def mkdir_and_sync(path):
 
     path.mkdir()
     sync_directory(path.parent)
+
+
+def list_files(path):
+    return sorted(
+        (child for child in Path(path).iterdir() if child.is_file()),
+        key=lambda child: child.name,
+    )
 
 
 def sync_directory(directory):

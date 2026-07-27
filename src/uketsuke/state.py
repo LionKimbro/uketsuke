@@ -8,6 +8,7 @@ configuration = {
         "copy-and-sync": None,
         "delete-and-sync": None,
         "mkdir-and-sync": None,
+        "list-files": None,
     },
     "host-functions": {
         "summarize-request": None,
@@ -34,6 +35,7 @@ def validate_that_all_expected_configuration_keys_are_present():
             "copy-and-sync",
             "delete-and-sync",
             "mkdir-and-sync",
+            "list-files",
         },
         "host-functions": {
             "summarize-request",
