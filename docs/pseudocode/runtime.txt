@@ -83,6 +83,20 @@ def clear_the_observation_facts_for_this_new_turn():
 def identify_what_needs_to_be_done():
     examine the active job and inbox according to the planned priority order
 
+    if the active job has status "dead-letter-pending":
+        return the operation that completes the dead-letter transition:
+          if the working opaque request file exists:
+              copy it to its named dead-letter destination
+          set the in-memory job status to
+              "transferred-to-dead-letter-directory"
+          TEMPORARY, PENDING HISTORY-MECHANISM DESIGN:
+              manually append the dead-letter transfer history entry
+          write the changed job record as JSON to its named dead-letter
+              destination
+          if the working opaque request file exists:
+              delete it from working
+          delete the working job record
+
     if there is an active job that needs work:
         TEMPORARY, FOR THE CURRENT IMPLEMENTATION CYCLE:
           return no operation; the runtime idles because it does not yet
@@ -113,8 +127,9 @@ PLANNED PRIORITY ORDER
 These are part of the intended routine, but are not all implemented in
 the current cycle.
 
-  1. send a result, then move the job to done
-  2. do a task, then move the job to the state from which its result
+  1. complete a dead-letter-pending transition
+  2. send a result, then move the job to done
+  3. do a task, then move the job to the state from which its result
      will be sent
-  3. claim an inbox message and create its job
-  4. otherwise, there is no work
+  4. claim an inbox message and create its job
+  5. otherwise, there is no work

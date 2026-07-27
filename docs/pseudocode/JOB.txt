@@ -75,6 +75,7 @@ execution-attempted
 executed
 reported
 done
+transferred-to-dead-letter-directory
 ```
 
 The intended ordinary progression is:
@@ -82,6 +83,9 @@ The intended ordinary progression is:
 ```
 claimed -> execution-attempted -> executed -> reported -> done
 ```
+
+`transferred-to-dead-letter-directory` is the resting status of an
+archived dead-letter job record.
 
 The exact rules for every transition, including recovery after an
 interruption, are not specified here yet.

@@ -12,6 +12,7 @@ OWNS
     - dead-letter
     - job
     - job-nextstate
+    - opaque-request-file
 
 READS
   state.configuration.directories
@@ -51,6 +52,7 @@ paths = {
     "dead-letter": None,
     "job": None,
     "job-nextstate": None,
+    "opaque-request-file": None
 }
 
 
@@ -66,6 +68,7 @@ def ensure_that_the_necessary_directories_exist_when_the_program_starts_up():
     paths["dead-letter"] = work_space / "dead-letter"
     paths["job"] = paths["working"] / "job.json"
     paths["job-nextstate"] = paths["working"] / "job-nextstate.json"
+    paths["opaque-request-file"] = paths["working"] / "opaque-request-file"
 
     ask fsio to ensure that the working/ directory exists
     ask fsio to ensure that the done/ directory exists
