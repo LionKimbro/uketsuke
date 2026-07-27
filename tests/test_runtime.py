@@ -60,6 +60,16 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(runtime.g["operation"], "idle")
         self.assertEqual(runtime.panel["last-operation"], "idle")
 
+    def test_tick_reports_idle_for_an_active_claimed_job(self):
+        paths.path("job").write_text(
+            json.dumps({"status": "claimed"}), encoding="utf-8"
+        )
+
+        self.assertTrue(runtime.do_tick())
+
+        self.assertEqual(runtime.g["operation"], "idle")
+        self.assertEqual(runtime.panel["last-operation"], "idle")
+
     def test_ticks_move_an_unrecognizable_request_to_dead_letter(self):
         request = paths.path("inbox") / "broken.json"
         request.write_bytes(b"not json")
@@ -83,7 +93,29 @@ class RuntimeTests(unittest.TestCase):
             dead_letter_job["status"], "transferred-to-dead-letter-directory"
         )
         self.assertEqual(dead_letter_job["request-id"], None)
+        self.assertEqual(dead_letter_requests[0].read_bytes(), b"not json")
+        timestamp = dead_letter_jobs[0].stem.removeprefix("job-")
+        self.assertEqual(
+            dead_letter_requests[0].name,
+            f"job-{timestamp}-original-request",
+        )
         self.assertEqual(runtime.panel["last-operation"], "complete-dead-letter-transition")
+
+    def test_dead_letter_completion_tolerates_a_missing_working_request(self):
+        (paths.path("inbox") / "broken.json").write_bytes(b"not json")
+        runtime.do_tick()
+        paths.path("opaque-request-file").unlink()
+
+        self.assertTrue(runtime.do_tick())
+
+        self.assertFalse(paths.path("job").exists())
+        self.assertEqual(len(list(paths.path("dead-letter").glob("job-*.json"))), 1)
+
+    def test_tick_returns_false_after_quit(self):
+        runtime.transition_to_the_quit_state()
+
+        self.assertFalse(runtime.do_tick())
+        self.assertTrue(runtime.panel["quit"])
 
 
 if __name__ == "__main__":

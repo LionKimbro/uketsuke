@@ -42,7 +42,11 @@ class StartupTests(unittest.TestCase):
     def test_startup_replaces_the_job_with_a_valid_staged_replacement(self):
         startup.initialize_program_at_startup_time_once(self.configuration)
 
-        staged_job = {"status": "claimed", "request-id": "request-1"}
+        staged_job = {
+            "status": "claimed",
+            "request-id": "request-1",
+            "request-original-filename": "request.json",
+        }
         paths.path("job-nextstate").write_text(json.dumps(staged_job), encoding="utf-8")
 
         startup.initialize_program_at_startup_time_once(self.configuration)
@@ -66,6 +70,7 @@ class StartupTests(unittest.TestCase):
         interrupted_job = {
             "status": "execution-attempted",
             "request-id": "request-1",
+            "request-original-filename": "request.json",
             "error": None,
             "history": [],
         }
@@ -80,6 +85,24 @@ class StartupTests(unittest.TestCase):
             repaired_job["history"][-1]["operation"],
             "startup-repaired-interrupted-execution",
         )
+
+    def test_startup_removes_the_inbox_duplicate_of_an_active_job(self):
+        startup.initialize_program_at_startup_time_once(self.configuration)
+        duplicate = paths.path("inbox") / "request.json"
+        duplicate.write_text("original request", encoding="utf-8")
+        paths.path("job").write_text(
+            json.dumps(
+                {
+                    "status": "dead-letter-pending",
+                    "request-original-filename": "request.json",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        startup.initialize_program_at_startup_time_once(self.configuration)
+
+        self.assertFalse(duplicate.exists())
 
 
 if __name__ == "__main__":

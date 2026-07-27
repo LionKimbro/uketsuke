@@ -13,6 +13,12 @@ def initialize_program_at_startup_time_once(new_configuration):
 
 def repair_system_from_potentially_crashed_state():
     heal_incomplete_job_transition()
+    jobs.read_the_current_active_job_if_there_is_one()
+
+    if jobs.g["job"] is None:
+        return
+
+    remove_the_inbox_duplicate_of_a_claimed_job()
     heal_interrupted_execution_job()
 
 
@@ -37,11 +43,6 @@ def heal_incomplete_job_transition():
 
 
 def heal_interrupted_execution_job():
-    jobs.read_the_current_active_job_if_there_is_one()
-
-    if jobs.g["job"] is None:
-        return
-
     if jobs.g["job"]["status"] != "execution-attempted":
         return
 
@@ -51,3 +52,12 @@ def heal_interrupted_execution_job():
         "reset-to-claimed-for-reexecution",
         [],
     )
+
+
+def remove_the_inbox_duplicate_of_a_claimed_job():
+    original_filename = jobs.g["job"]["request-original-filename"]
+
+    for file_description in fsio.list_files(paths.path("inbox")):
+        if file_description["path"].name == original_filename:
+            fsio.delete_file(file_description["path"])
+            return
