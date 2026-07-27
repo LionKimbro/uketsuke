@@ -43,8 +43,12 @@ def initialize_program_at_startup_time_once(new_configuration):
 
 def repair_system_from_potentially_crashed_state():
     heal_incomplete_job_transition()
-    remove_the_inbox_duplicate_of_a_claimed_job()
-    heal_interrupted_execution_job()
+
+    read the current active job, if there is one
+
+    if there is one:
+        remove_the_inbox_duplicate_of_a_claimed_job()
+        heal_interrupted_execution_job()
 
 
 def heal_incomplete_job_transition():
@@ -71,11 +75,6 @@ def heal_incomplete_job_transition():
 
 
 def heal_interrupted_execution_job():
-    read the current active job, if there is one
-
-    if there is no active job:
-        return
-
     if the job status is not "execution-attempted":
         return
 
@@ -86,11 +85,6 @@ def heal_interrupted_execution_job():
 
 
 def remove_the_inbox_duplicate_of_a_claimed_job():
-    read the current active job, if there is one
-
-    if there is no active job:
-        return
-
     look in inbox for a file whose filename equals the job's
     request-original-filename
 
