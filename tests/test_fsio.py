@@ -24,9 +24,14 @@ class Fsiotests(unittest.TestCase):
         (inbox / "nested").mkdir()
         (inbox / "nested" / "hidden.json").write_text("hidden", encoding="utf-8")
 
-        files = fsio.list_files(inbox)
+        file_descriptions = fsio.list_files(inbox)
 
-        self.assertEqual(files, [inbox / "a.json", inbox / "b.json"])
+        self.assertEqual(
+            {description["path"] for description in file_descriptions},
+            {inbox / "a.json", inbox / "b.json"},
+        )
+        for description in file_descriptions:
+            self.assertIsInstance(description["last-modified"], float)
 
 
 if __name__ == "__main__":

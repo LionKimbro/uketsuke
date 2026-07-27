@@ -58,10 +58,14 @@ def mkdir_and_sync(path):
 
 
 def list_files(path):
-    return sorted(
-        (child for child in Path(path).iterdir() if child.is_file()),
-        key=lambda child: child.name,
-    )
+    return [
+        {
+            "path": child,
+            "last-modified": child.stat().st_mtime,
+        }
+        for child in Path(path).iterdir()
+        if child.is_file()
+    ]
 
 
 def sync_directory(directory):

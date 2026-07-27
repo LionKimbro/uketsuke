@@ -76,7 +76,15 @@ raises: host failure unchanged
 ### LIST-FILES
 
 accepts: path (directory path)
-returns: the immediate file paths in that directory
+returns: one description for each immediate file in that directory:
+
+```text
+{
+  "path": the file path,
+  "last-modified": seconds since the Unix epoch,
+}
+```
+
 does not: recurse into child directories or return directories
 raises: host failure unchanged
 

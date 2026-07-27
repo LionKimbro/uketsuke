@@ -57,6 +57,15 @@ def read_the_current_active_job_if_there_is_one():
     g["job"] = the parsed job record
 
 
+def create_new(info):
+    create a new job dictionary from:
+        the supplied info
+        the jobs machine's knowledge of a fully populated claimed job
+
+    place the new job in g["job"]
+    durably_replace_the_current_job_with_its_new_state()
+
+
 def durably_replace_the_current_job_with_its_new_state():
     write g["job"] as JSON to the staged next-state job record
     copy the staged next-state job record over the authoritative job record

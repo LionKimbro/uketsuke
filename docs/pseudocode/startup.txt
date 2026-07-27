@@ -16,6 +16,7 @@ CALLS
   host delete-file-and-sync via fsio
   host read-file via fsio
   jobs machine operations for reading and durably recording a job
+  host list-files operation via fsio
 
 MAY SAFELY ASSUME
   if the JSON for a job is fully readable, that it is valid data
@@ -42,6 +43,7 @@ def initialize_program_at_startup_time_once(new_configuration):
 
 def repair_system_from_potentially_crashed_state():
     heal_incomplete_job_transition()
+    remove_the_inbox_duplicate_of_a_claimed_job()
     heal_interrupted_execution_job()
 
 
@@ -81,6 +83,19 @@ def heal_interrupted_execution_job():
     append a durable history entry reporting the interrupted execution
     and that the job is prepared for re-execution
     (the durable history append also durably saves the reset job state)
+
+
+def remove_the_inbox_duplicate_of_a_claimed_job():
+    read the current active job, if there is one
+
+    if there is no active job:
+        return
+
+    look in inbox for a file whose filename equals the job's
+    request-original-filename
+
+    if it exists:
+        delete it from inbox
 
 
 -----------------

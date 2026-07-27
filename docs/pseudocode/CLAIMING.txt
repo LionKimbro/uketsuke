@@ -20,18 +20,41 @@ source of lifecycle truth.  Orphan cleanup is useful for neatness but
 does not need aggressive recovery machinery.
 
 
-## Questions under discussion
+## Claim and recovery direction
 
-### When to summarize
+The active job record is the durable boundary of a completed claim.
+
+Before `job.json` exists, the inbox file remains the source of truth.
+If a crash leaves an orphan `opaque-request-file`, a later claimant may
+ignore or replace it while the inbox source remains available.
+
+The host summary is obtained after an opaque copy has been placed in
+working, but before the initial claimed job is durably created.  The
+claiming process supplies `jobs.create_new(info)` with both the host
+summary and the request's original filename.
+
+After a claimed job exists, startup treats the job as the source of
+truth.  If an inbox file appears with the job's
+`request-original-filename`, startup deletes that duplicate inbox file.
+
+In the normal claim path, immediately after a new claimed or
+dead-letter-pending job has been durably recorded, claiming deletes the
+original inbox file that was copied into working.  Startup's duplicate
+removal is the crash-recovery backstop for an interruption before that
+ordinary deletion.
+
+The selection rule for an inbox claim is: choose the file with the
+highest `last-modified` value returned by `list-files`.
+
+
+## Summary timing
 
 The host `summarize-request` function supplies request-id, optional
 reply-to, and other facts that uketsuke needs for the job.
 
-Possible timing:
-
-- summarize as part of claiming, before creating the active job;
-- claim first, record an intermediate summarized/not-summarized state,
-  then summarize later.
+Summarization is part of claiming.  It occurs after the raw request has
+been copied into working and before the initial job record is durably
+created.
 
 
 ### When to dead-letter
