@@ -1,0 +1,55 @@
+The future request-claiming transition.
+
+This is a design note.  It does not currently render into a Python
+module.
+
+
+## Current decisions
+
+The inbox is passive.  It does not need its own machine.  Runtime will
+select a claim action when there is no active job, no higher-priority
+work, and an inbox request is available.
+
+Claiming brings an opaque inbox request into the working area as
+`opaque-request-file` and creates the active job when the request can
+be understood.
+
+An orphan `opaque-request-file` without an active job is not dangerous.
+The job record, rather than the contents of `working/`, is the primary
+source of lifecycle truth.  Orphan cleanup is useful for neatness but
+does not need aggressive recovery machinery.
+
+
+## Questions under discussion
+
+### When to summarize
+
+The host `summarize-request` function supplies request-id, optional
+reply-to, and other facts that uketsuke needs for the job.
+
+Possible timing:
+
+- summarize as part of claiming, before creating the active job;
+- claim first, record an intermediate summarized/not-summarized state,
+  then summarize later.
+
+
+### When to dead-letter
+
+If the host cannot recognize or summarize the request, uketsuke must
+preserve both the raw request bytes and a job record explaining the
+failure in `dead-letter/`.
+
+Possible timing:
+
+- dead-letter immediately when summarization fails;
+- retain the request in working until a later execution-related step
+  determines that it cannot be handled.
+
+
+### Whether to add a `summarized` status
+
+The current job status vocabulary has `claimed` as the state before
+execution.  A separate `summarized` state would make the host summary
+step independently visible and recoverable, but would add another
+durable transition and another startup/reconciliation case.
