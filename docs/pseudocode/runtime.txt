@@ -85,6 +85,8 @@ def identify_what_needs_to_be_done():
 
     if the active job has status "dead-letter-pending":
         return the operation that completes the dead-letter transition:
+          use the failed summarize-request history timestamp to construct
+              both named dead-letter destinations
           if the working opaque request file exists:
               copy it to its named dead-letter destination
           set the in-memory job status to

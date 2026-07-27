@@ -87,6 +87,42 @@ claimed -> execution-attempted -> executed -> reported -> done
 `transferred-to-dead-letter-directory` is the resting status of an
 archived dead-letter job record.
 
+
+## Dead-letter filenames
+
+When a failed `summarize-request` creates a `dead-letter-pending` job,
+its history entry has one file-safe UTC timestamp.  The jobs machine
+finds that summarize-request history entry and uses its timestamp for
+every retry of the dead-letter transition.
+
+For timestamp `<timestamp>`, the paired dead-letter artifacts are:
+
+```text
+job-<timestamp>.json
+job-<timestamp>-original-request
+```
+
+The timestamp format is:
+
+```text
+YYYYMMDDTHHMMSSffffffZ
+```
+
+For example:
+
+```text
+job-20260727T194318123456Z.json
+job-20260727T194318123456Z-original-request
+```
+
+The filename timestamp means: this is when uketsuke determined that the
+request could not be summarized and became a dead-letter job.
+
+The actual later transfer into `dead-letter/` has a different time.  It
+is visible in the destination files' filesystem timestamps and in the
+dead-letter-transfer history entry recorded in the archived job.  The
+history entry is the durable semantic record of that transfer time.
+
 The exact rules for every transition, including recovery after an
 interruption, are not specified here yet.
 
