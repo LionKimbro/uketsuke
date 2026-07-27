@@ -9,6 +9,7 @@ paths = {
     "dead-letter": None,
     "job": None,
     "job-nextstate": None,
+    "opaque-request-file": None,
 }
 
 
@@ -24,6 +25,7 @@ def ensure_that_the_necessary_directories_exist_when_the_program_starts_up():
     paths["dead-letter"] = work_space / "dead-letter"
     paths["job"] = paths["working"] / "job.json"
     paths["job-nextstate"] = paths["working"] / "job-nextstate.json"
+    paths["opaque-request-file"] = paths["working"] / "opaque-request-file"
 
     fsio.mkdir_and_sync(paths["working"])
     fsio.mkdir_and_sync(paths["done"])
@@ -31,10 +33,10 @@ def ensure_that_the_necessary_directories_exist_when_the_program_starts_up():
 
 
 def path(name):
-    if name in {"inbox", "work-space"}:
+    if name in state.configuration["directories"]:
         return state.configuration["directories"][name]
 
-    if name in {"working", "done", "dead-letter", "job", "job-nextstate"}:
+    if name in paths:
         return paths[name]
 
     raise ValueError(f"Unsupported path name: {name}")

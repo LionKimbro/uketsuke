@@ -82,6 +82,7 @@ INFO FOR A SUCCESSFULLY SUMMARIZED CLAIM
     None
   initial history entry
     records the successful claim
+    supplied in info as "history-entry"
 
 
 INFO FOR A FAILED SUMMARY
@@ -100,6 +101,7 @@ INFO FOR A FAILED SUMMARY
   initial history entry
     records the failed summarize-request and its captured error
     its timestamp determines the dead-letter artifact filenames
+    supplied in info as "history-entry"
 
 
 def durably_replace_the_current_job_with_its_new_state():

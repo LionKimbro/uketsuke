@@ -76,10 +76,10 @@ def ensure_that_the_necessary_directories_exist_when_the_program_starts_up():
 
 
 def path(name):
-    if name is one of "inbox" or "work-space":
+    if name is in state.configuration["directories"]:
         return state.configuration["directories"][name]
 
-    if name is one of "working", "done", "dead-letter", "job", or "job-nextstate":
+    if name is in paths:
         return paths[name]
 
     raise an error for an unsupported path name

@@ -112,9 +112,14 @@ def identify_what_needs_to_be_done():
         state from which its result will be sent
 
     if there is an inbox message available to claim:
-        return the operation that claims it and creates its job
+        return perform_operation_claiming_an_inbox_request
 
     return None
+
+
+def perform_operation_claiming_an_inbox_request():
+    follow the planned claim procedure in CLAIMING.txt
+    set the operation's readable identity to "claim-inbox-request"
 
 
 def transition_to_the_quit_state():

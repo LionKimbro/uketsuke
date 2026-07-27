@@ -30,6 +30,7 @@ class StartupTests(unittest.TestCase):
             "dead-letter": self.root / "work-space" / "dead-letter",
             "job": self.root / "work-space" / "working" / "job.json",
             "job-nextstate": self.root / "work-space" / "working" / "job-nextstate.json",
+            "opaque-request-file": self.root / "work-space" / "working" / "opaque-request-file",
         }
 
         for name, expected_path in expected_paths.items():

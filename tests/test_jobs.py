@@ -57,6 +57,34 @@ class JobsTests(unittest.TestCase):
 
         self.assertIsNone(jobs.g["job"])
 
+    def test_create_new_records_a_fully_populated_claimed_job(self):
+        paths.path("job").unlink()
+
+        jobs.create_new(
+            {
+                "request-file-path": str(paths.path("opaque-request-file")),
+                "request-original-filename": "request.json",
+                "request-id": "request-1",
+                "reply-to": "reply.json",
+                "status": "claimed",
+                "completion-status": None,
+                "error": None,
+                "history-entry": {
+                    "timestamp": "20260727T194318123456Z",
+                    "operation": "claim-inbox-request",
+                    "result": "claimed",
+                    "error": None,
+                },
+            }
+        )
+
+        saved_job = json.loads(paths.path("job").read_text(encoding="utf-8"))
+        self.assertEqual(saved_job, jobs.g["job"])
+        self.assertEqual(saved_job["status"], "claimed")
+        self.assertEqual(saved_job["reply-to"], "reply.json")
+        self.assertEqual(saved_job["history"][0]["operation"], "claim-inbox-request")
+        self.assertFalse(paths.path("job-nextstate").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

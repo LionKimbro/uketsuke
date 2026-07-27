@@ -6,6 +6,42 @@ system work; uketsuke calls these operations through fsio or its
 configured host functions.
 
 
+## CONFIGURATION
+
+configuration contains these required sections:
+
+```text
+host-os-functionality  dictionary of host filesystem callables
+host-functions          dictionary of host request/work callables
+directories             dictionary of configured pathlib.Path values
+```
+
+### HOST-OS-FUNCTIONALITY
+
+```text
+read-file        callable(pathlib.Path) -> bytes
+write-and-sync   callable(pathlib.Path, bytes) -> None
+copy-and-sync    callable(pathlib.Path src, pathlib.Path dest) -> None
+delete-and-sync  callable(pathlib.Path) -> None
+mkdir-and-sync   callable(pathlib.Path) -> None
+list-files       callable(pathlib.Path) -> list[file description]
+```
+
+### HOST-FUNCTIONS
+
+```text
+summarize-request  callable(pathlib.Path) -> request summary dictionary
+dispatch-job       callable(job dictionary) -> JSON-safe value
+```
+
+### DIRECTORIES
+
+```text
+inbox       pathlib.Path
+work-space  pathlib.Path
+```
+
+
 ## DIRECTORY TREE
 
 configuration provides:
