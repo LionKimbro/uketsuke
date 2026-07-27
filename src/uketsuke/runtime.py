@@ -55,6 +55,9 @@ def identify_what_needs_to_be_done():
         if jobs.g["job"]["status"] == "executed":
             return "send-job-reply"
 
+        if jobs.g["job"]["status"] == "done":
+            return "retire-done-job"
+
         return "idle"
 
     if fsio.list_files(paths.path("inbox")):
@@ -77,6 +80,10 @@ def perform_the_selected_operation():
 
     if g["operation"] == "send-job-reply":
         perform_operation_sending_the_job_reply()
+        return
+
+    if g["operation"] == "retire-done-job":
+        perform_operation_retiring_the_done_job()
         return
 
     if g["operation"] == "claim-inbox-request":
@@ -165,14 +172,38 @@ def perform_operation_sending_the_job_reply():
         panel["last-error"] = job["error"]
         return
 
-    job["status"] = "reported"
+    job["status"] = "done"
     jobs.append_result("send-job-reply", "succeeded", [])
     panel["last-result"] = "reply-succeeded"
 
 
+def perform_operation_retiring_the_done_job():
+    job = jobs.g["job"]
+    timestamp = summary_timestamp_from(job)
+    done_directory = paths.path("done")
+    done_job = done_directory / f"job-{timestamp}.json"
+    done_request = done_directory / f"job-{timestamp}-original-request"
+    opaque_request = paths.path("opaque-request-file")
+
+    if fsio.read_file(opaque_request, ["bytes"]) is not None:
+        fsio.copy_file(opaque_request, done_request)
+
+    job["history"].append(
+        make_history_entry("retire-done-job", "completed", None)
+    )
+    fsio.write_file(done_job, job, ["json"])
+
+    if fsio.read_file(opaque_request, ["bytes"]) is not None:
+        fsio.delete_file(opaque_request)
+
+    fsio.delete_file(paths.path("job"))
+    jobs.g["job"] = None
+    panel["last-result"] = "retired-done-job"
+
+
 def perform_operation_completing_the_dead_letter_transition():
     job = jobs.g["job"]
-    timestamp = failed_summary_timestamp_from(job)
+    timestamp = summary_timestamp_from(job)
     dead_letter_directory = paths.path("dead-letter")
     dead_letter_job = dead_letter_directory / f"job-{timestamp}.json"
     dead_letter_request = (
@@ -197,14 +228,14 @@ def perform_operation_completing_the_dead_letter_transition():
     panel["last-result"] = "completed-dead-letter-transition"
 
 
-def failed_summary_timestamp_from(job):
+def summary_timestamp_from(job):
     for history_entry in job["history"]:
         if history_entry["operation"] == "summarize-request":
             timestamp = datetime.fromisoformat(history_entry["timestamp"])
             timestamp = timestamp.astimezone(timezone.utc)
             return timestamp.strftime("%Y%m%dT%H%M%S%fZ")
 
-    raise ValueError("Dead-letter job has no summarize-request history entry")
+    raise ValueError("Job has no summarize-request history entry")
 
 
 def make_history_entry(operation, result, error):

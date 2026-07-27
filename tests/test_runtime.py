@@ -60,7 +60,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(runtime.g["operation"], "idle")
         self.assertEqual(runtime.panel["last-operation"], "idle")
 
-    def test_ticks_execute_then_report_a_claimed_job(self):
+    def test_ticks_execute_report_then_retire_a_claimed_job(self):
         request = paths.path("inbox") / "request.json"
         request.write_text(
             '{"request-id": "request-1"}',
@@ -81,10 +81,25 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(runtime.panel["last-result"], "dispatch-succeeded")
 
         self.assertTrue(runtime.do_tick())
-        reported_job = json.loads(paths.path("job").read_text(encoding="utf-8"))
-        self.assertEqual(reported_job["status"], "reported")
-        self.assertEqual(reported_job["history"][-1]["operation"], "send-job-reply")
+        done_job = json.loads(paths.path("job").read_text(encoding="utf-8"))
+        self.assertEqual(done_job["status"], "done")
+        self.assertEqual(done_job["history"][-1]["operation"], "send-job-reply")
         self.assertEqual(runtime.panel["last-result"], "reply-succeeded")
+
+        self.assertTrue(runtime.do_tick())
+        self.assertFalse(paths.path("job").exists())
+        self.assertFalse(paths.path("opaque-request-file").exists())
+        done_jobs = list(paths.path("done").glob("job-*.json"))
+        done_requests = list(paths.path("done").glob("job-*-original-request"))
+        self.assertEqual(len(done_jobs), 1)
+        self.assertEqual(len(done_requests), 1)
+        archived_job = json.loads(done_jobs[0].read_text(encoding="utf-8"))
+        self.assertEqual(archived_job["status"], "done")
+        self.assertEqual(archived_job["history"][-1]["operation"], "retire-done-job")
+        self.assertEqual(done_requests[0].read_bytes(), b'{"request-id": "request-1"}')
+        timestamp = done_jobs[0].stem.removeprefix("job-")
+        self.assertEqual(done_requests[0].name, f"job-{timestamp}-original-request")
+        self.assertEqual(runtime.panel["last-operation"], "retire-done-job")
 
     def test_tick_executes_every_claimed_job_to_executed(self):
         (paths.path("inbox") / "request.json").write_text(

@@ -71,7 +71,6 @@ The currently named status vocabulary is:
 claimed
 execution-attempted
 executed
-reported
 done
 transferred-to-dead-letter-directory
 ```
@@ -79,7 +78,7 @@ transferred-to-dead-letter-directory
 The intended ordinary progression is:
 
 ```
-claimed -> execution-attempted -> executed -> reported -> done
+claimed -> execution-attempted -> executed -> done
 ```
 
 `transferred-to-dead-letter-directory` is the resting status of an

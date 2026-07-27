@@ -1,0 +1,49 @@
+The done-job retirement operation.
+
+This is a design note. It does not currently render into a Python
+module. Runtime selects this operation when JOB-LIFECYCLE.txt says a
+done job requires it.
+
+OWNS
+  the ordered transfer of one completed job and its opaque request from
+  working/ into done/
+
+MAY SAFELY ASSUME
+  that the active job has status "done"
+  that its summarize-request history timestamp determines the names of
+  its done artifacts
+
+ENSURES
+  that done/ contains the final job record
+  that it contains the raw request when the working copy still exists
+  that the working job record is removed after the archive is written
+
+-----------------
+
+
+def perform_operation_retiring_the_done_job():
+    use the summarize-request history timestamp to construct both named
+    done destinations
+
+    if the working opaque request file exists:
+        copy it to its named done destination
+
+    TEMPORARY, PENDING HISTORY-MECHANISM DESIGN:
+        manually append the done-job retirement history entry
+
+    write the changed job record as JSON to its named done destination
+
+    if the working opaque request file exists:
+        delete it from working
+
+    delete the working job record
+
+
+DONE ARTIFACT NAMES
+
+For the summary timestamp `<timestamp>`, the paired done artifacts are:
+
+```text
+job-<timestamp>.json
+job-<timestamp>-original-request
+```

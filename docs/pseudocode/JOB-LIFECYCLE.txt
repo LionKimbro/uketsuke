@@ -36,9 +36,6 @@ executed
   was one
   its completion-status records success or fail
 
-reported
-  the host successfully reported the completed job's response or error
-
 done
   the job no longer needs any receptionist work
   it is ready to be, or has been, retired into done/
@@ -81,7 +78,7 @@ whether an opaque reply is wanted and, if so, how to deliver it.
 
 ```text
 executed
-  -- ask host to report the outcome --> reported --> done --> retired into done/
+  -- ask host to report the outcome --> done --> retired into done/
 ```
 
 An active working job with status done requires only retirement into

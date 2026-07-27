@@ -6,7 +6,7 @@ executed job requires it.
 
 OWNS
   calling the host reply sender for the active job
-  recording whether the delivery was reported or failed
+  recording whether the delivery completed or failed
 
 READS
   the active executed job
@@ -21,7 +21,7 @@ MAY SAFELY ASSUME
   that the active job has status "executed"
 
 ENSURES
-  that a successful host reply delivery is durably recorded as reported
+  that a successful host reply delivery is durably recorded as done
   that a failed host reply delivery remains available for another attempt
 
 -----------------
@@ -31,7 +31,7 @@ def perform_operation_sending_the_job_reply():
     call host.send_reply(active job)
 
     if the host returns normally:
-        set the active job status to "reported"
+        set the active job status to "done"
         append a durable history entry recording successful reply delivery
 
     if the host raises an exception:
