@@ -21,7 +21,7 @@ ENSURES
 -----------------
 
 
-def complete_the_dead_letter_transition():
+def perform_operation_completing_the_dead_letter_transition():
     use the failed summarize-request history timestamp to construct both
     named dead-letter destinations
 

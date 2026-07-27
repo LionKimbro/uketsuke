@@ -79,6 +79,7 @@ def identify_what_needs_to_be_done():
     if there is an active job:
         return the lifecycle-required operation for its status
         follow JOB-LIFECYCLE.txt for the status map
+        follow EXECUTION.txt when that operation is execution
         follow DEAD-LETTER.txt when that operation is dead-letter transfer
 
     if there is an inbox message available to claim:
@@ -87,9 +88,21 @@ def identify_what_needs_to_be_done():
     return "idle"
 
 
+THE CURRENT OPERATION PROCEDURES
+
 def perform_operation_claiming_an_inbox_request():
     follow the planned claim procedure in CLAIMING.txt
     set the operation's readable identity to "claim-inbox-request"
+
+
+def perform_operation_executing_the_claimed_job():
+    follow the planned execution procedure in EXECUTION.txt
+    set the operation's readable identity to "execute-claimed-job"
+
+
+def perform_operation_completing_the_dead_letter_transition():
+    follow the planned dead-letter procedure in DEAD-LETTER.txt
+    set the operation's readable identity to "complete-dead-letter-transition"
 
 
 def transition_to_the_quit_state():

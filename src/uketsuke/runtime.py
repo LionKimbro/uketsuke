@@ -49,6 +49,9 @@ def identify_what_needs_to_be_done():
         if jobs.g["job"]["status"] == "dead-letter-pending":
             return "complete-dead-letter-transition"
 
+        if jobs.g["job"]["status"] == "claimed":
+            return "execute-claimed-job"
+
         return "idle"
 
     if fsio.list_files(paths.path("inbox")):
@@ -62,7 +65,11 @@ def perform_the_selected_operation():
         return
 
     if g["operation"] == "complete-dead-letter-transition":
-        complete_the_dead_letter_transition()
+        perform_operation_completing_the_dead_letter_transition()
+        return
+
+    if g["operation"] == "execute-claimed-job":
+        perform_operation_executing_the_claimed_job()
         return
 
     if g["operation"] == "claim-inbox-request":
@@ -119,7 +126,37 @@ def perform_operation_claiming_an_inbox_request():
     fsio.delete_file(selected_request_path)
 
 
-def complete_the_dead_letter_transition():
+def perform_operation_executing_the_claimed_job():
+    job = jobs.g["job"]
+    job["status"] = "execution-attempted"
+    jobs.append_result("prepare-dispatch", "execution-attempted", [])
+
+    try:
+        response = host.dispatch_job(job)
+    except Exception:
+        job["completion-status"] = "fail"
+        if "reply-to" in job:
+            job["status"] = "executed"
+        else:
+            job["status"] = "done"
+
+        jobs.append_result("dispatch-job", "failed", ["error"])
+        panel["last-result"] = "dispatch-failed"
+        panel["last-error"] = job["error"]
+        return
+
+    job["response"] = response
+    job["completion-status"] = "success"
+    if "reply-to" in job:
+        job["status"] = "executed"
+    else:
+        job["status"] = "done"
+
+    jobs.append_result("dispatch-job", "succeeded", [])
+    panel["last-result"] = "dispatch-succeeded"
+
+
+def perform_operation_completing_the_dead_letter_transition():
     job = jobs.g["job"]
     timestamp = failed_summary_timestamp_from(job)
     dead_letter_directory = paths.path("dead-letter")

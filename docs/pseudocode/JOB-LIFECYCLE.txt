@@ -31,7 +31,7 @@ execution-attempted
   if startup finds this state, it resets it to claimed for re-execution
 
 executed
-  the host dispatch attempt returned normally or raised an error
+  the host dispatch attempt completed and the job has a reply-to
   the job holds its response when there was one, or its error when there
   was one
   its completion-status records success or fail
@@ -66,7 +66,8 @@ claimed
 
 execution-attempted
   -- startup repair after interruption --> claimed
-  -- host dispatch attempt finishes --> executed
+  -- host dispatch completes, with reply-to --> executed
+  -- host dispatch completes, without reply-to --> done
 
 dead-letter-pending
   -- copy raw request and job archive, then clear working -->

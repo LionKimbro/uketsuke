@@ -4,7 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from uketsuke import paths, runtime, startup
+from uketsuke import paths, runtime, startup, state
 from uketsuke_dev_harness import make_configuration
 
 
@@ -60,15 +60,58 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(runtime.g["operation"], "idle")
         self.assertEqual(runtime.panel["last-operation"], "idle")
 
-    def test_tick_reports_idle_for_an_active_claimed_job(self):
-        paths.path("job").write_text(
-            json.dumps({"status": "claimed"}), encoding="utf-8"
+    def test_tick_executes_a_claimed_job_with_a_reply_destination(self):
+        request = paths.path("inbox") / "request.json"
+        request.write_text(
+            '{"request-id": "request-1", "reply-to": "reply.json"}',
+            encoding="utf-8",
         )
+        runtime.do_tick()
 
         self.assertTrue(runtime.do_tick())
 
-        self.assertEqual(runtime.g["operation"], "idle")
-        self.assertEqual(runtime.panel["last-operation"], "idle")
+        job = json.loads(paths.path("job").read_text(encoding="utf-8"))
+        self.assertEqual(job["status"], "executed")
+        self.assertEqual(job["completion-status"], "success")
+        self.assertIn("response", job)
+        self.assertEqual(
+            [entry["operation"] for entry in job["history"][-2:]],
+            ["prepare-dispatch", "dispatch-job"],
+        )
+        self.assertEqual(runtime.panel["last-result"], "dispatch-succeeded")
+
+    def test_tick_executes_a_claimed_job_without_a_reply_destination_to_done(self):
+        (paths.path("inbox") / "request.json").write_text(
+            '{"request-id": "request-1"}', encoding="utf-8"
+        )
+        runtime.do_tick()
+
+        self.assertTrue(runtime.do_tick())
+
+        job = json.loads(paths.path("job").read_text(encoding="utf-8"))
+        self.assertEqual(job["status"], "done")
+        self.assertEqual(job["completion-status"], "success")
+
+    def test_tick_records_a_dispatch_error_in_a_claimed_job(self):
+        def dispatch_job(job):
+            raise RuntimeError("dispatcher broke")
+
+        state.configuration["host-functions"]["dispatch-job"] = dispatch_job
+        (paths.path("inbox") / "request.json").write_text(
+            '{"request-id": "request-1", "reply-to": "reply.json"}',
+            encoding="utf-8",
+        )
+        runtime.do_tick()
+
+        self.assertTrue(runtime.do_tick())
+
+        job = json.loads(paths.path("job").read_text(encoding="utf-8"))
+        self.assertEqual(job["status"], "executed")
+        self.assertEqual(job["completion-status"], "fail")
+        self.assertNotIn("response", job)
+        self.assertIn("RuntimeError: dispatcher broke", job["error"])
+        self.assertEqual(job["history"][-1]["operation"], "dispatch-job")
+        self.assertIn("RuntimeError: dispatcher broke", runtime.panel["last-error"])
 
     def test_ticks_move_an_unrecognizable_request_to_dead_letter(self):
         request = paths.path("inbox") / "broken.json"

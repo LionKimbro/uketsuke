@@ -1,0 +1,69 @@
+The host-dispatch operation for one claimed job.
+
+This is a design note.  It does not currently render into a Python
+module.  Runtime selects this operation when JOB-LIFECYCLE.txt says a
+claimed job requires it.
+
+OWNS
+  the durable before-dispatch boundary
+  calling the host dispatcher for the active job
+  recording the dispatch outcome in the active job
+  selecting the post-dispatch status from the presence of reply-to
+
+READS
+  the active claimed job
+  its optional reply-to fact
+
+CALLS
+  jobs.append_result
+  host.dispatch_job
+
+MAY SAFELY ASSUME
+  that the active job has status "claimed"
+  that the host dispatcher returns JSON-safe data when it returns
+
+ENSURES
+  that host dispatch is preceded by a durable execution-attempted state
+  that a completed dispatch attempt has a durable success response or
+  captured error in the job
+  that the next tick can either deliver its reply or retire it to done/
+
+-----------------
+
+
+def perform_operation_executing_the_claimed_job():
+    set the active job status to "execution-attempted"
+    append a durable history entry that dispatch is about to be attempted
+
+    call host.dispatch_job(active job)
+
+    if the host returns normally:
+        store its returned value in the active job's response
+        set completion-status to "success"
+
+        if the job has reply-to:
+            set status to "executed"
+        otherwise:
+            set status to "done"
+
+        append a durable history entry recording successful dispatch
+
+    if the host raises an exception:
+        set completion-status to "fail"
+
+        if the job has reply-to:
+            set status to "executed"
+        otherwise:
+            set status to "done"
+
+        append a durable history entry recording failed dispatch and its
+        captured exception trace
+
+
+OPERATION IDENTITIES
+
+  prepare-dispatch
+    the durable transition to execution-attempted
+
+  dispatch-job
+    the host dispatch attempt and its success or failure result
