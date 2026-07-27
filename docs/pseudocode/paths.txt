@@ -3,13 +3,15 @@ rendered file: src\uketsuke\paths.py
 The configured-paths machine.
 
 OWNS
+  the base level directories
+    - inbox
+    - work-space
   the derived paths inside the configured work-space
     - working
     - done
+    - dead-letter
     - job
     - job-nextstate
-  creating or verifying the required work-space directory tree
-  creating or verifying that the inbox directory exists
 
 READS
   state.configuration.directories
@@ -27,10 +29,7 @@ MUST NOT ASSUME
   that the derived working/ or done/ directories exist
 
 ENSURES
-  that the configured inbox and work-space directories exist after
-    ensure_that_the_necessary_directories_exist_when_the_program_starts_up
-    is called
-  that the working/ and done/ directories exist after
+  that the various directories exist after
     ensure_that_the_necessary_directories_exist_when_the_program_starts_up
     is called
   that path(name) returns the configured or derived path for every
@@ -49,6 +48,7 @@ DOES NOT OWN
 paths = {
     "working": None,
     "done": None,
+    "dead-letter": None,
     "job": None,
     "job-nextstate": None,
 }
@@ -63,18 +63,20 @@ def ensure_that_the_necessary_directories_exist_when_the_program_starts_up():
 
     paths["working"] = work_space / "working"
     paths["done"] = work_space / "done"
+    paths["dead-letter"] = work_space / "dead-letter"
     paths["job"] = paths["working"] / "job.json"
     paths["job-nextstate"] = paths["working"] / "job-nextstate.json"
 
     ask fsio to ensure that the working/ directory exists
     ask fsio to ensure that the done/ directory exists
+    ask fsio to ensure that the dead-letter/ directory exists
 
 
 def path(name):
     if name is one of "inbox" or "work-space":
         return state.configuration["directories"][name]
 
-    if name is one of "working", "done", "job", or "job-nextstate":
+    if name is one of "working", "done", "dead-letter", "job", or "job-nextstate":
         return paths[name]
 
     raise an error for an unsupported path name

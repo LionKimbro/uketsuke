@@ -6,6 +6,7 @@ from . import fsio, state
 paths = {
     "working": None,
     "done": None,
+    "dead-letter": None,
     "job": None,
     "job-nextstate": None,
 }
@@ -20,18 +21,20 @@ def ensure_that_the_necessary_directories_exist_when_the_program_starts_up():
 
     paths["working"] = work_space / "working"
     paths["done"] = work_space / "done"
+    paths["dead-letter"] = work_space / "dead-letter"
     paths["job"] = paths["working"] / "job.json"
     paths["job-nextstate"] = paths["working"] / "job-nextstate.json"
 
     fsio.mkdir_and_sync(paths["working"])
     fsio.mkdir_and_sync(paths["done"])
+    fsio.mkdir_and_sync(paths["dead-letter"])
 
 
 def path(name):
     if name in {"inbox", "work-space"}:
         return state.configuration["directories"][name]
 
-    if name in {"working", "done", "job", "job-nextstate"}:
+    if name in {"working", "done", "dead-letter", "job", "job-nextstate"}:
         return paths[name]
 
     raise ValueError(f"Unsupported path name: {name}")

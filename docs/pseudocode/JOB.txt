@@ -115,6 +115,9 @@ the opaque request file.
 
 There is never more than one job for a request-id.
 
+For a dead-letter job whose request cannot be identified,
+`"request-id"` is `None`.
+
 
 ## `reply-to`
 

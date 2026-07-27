@@ -27,6 +27,7 @@ class StartupTests(unittest.TestCase):
             "work-space": self.root / "work-space",
             "working": self.root / "work-space" / "working",
             "done": self.root / "work-space" / "done",
+            "dead-letter": self.root / "work-space" / "dead-letter",
             "job": self.root / "work-space" / "working" / "job.json",
             "job-nextstate": self.root / "work-space" / "working" / "job-nextstate.json",
         }
@@ -34,7 +35,7 @@ class StartupTests(unittest.TestCase):
         for name, expected_path in expected_paths.items():
             self.assertEqual(paths.path(name), expected_path)
 
-        for name in ["inbox", "work-space", "working", "done"]:
+        for name in ["inbox", "work-space", "working", "done", "dead-letter"]:
             self.assertTrue(paths.path(name).is_dir())
 
     def test_startup_replaces_the_job_with_a_valid_staged_replacement(self):

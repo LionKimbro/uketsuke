@@ -22,6 +22,7 @@ inbox/
 work-space/
   working/
   done/
+  dead-letter/
 ```
 
 directory rule: uketsuke creates the configured inbox and work-space
