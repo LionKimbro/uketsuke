@@ -1,0 +1,87 @@
+rendered file: src\uketsuke\jobs.py
+
+The active-job record machine.
+
+OWNS
+  reading the one active job record
+  preparing a new state for the active job
+  durably replacing the authoritative job record with its new state
+  appending and durably recording job history entries
+  assigning the current timestamp to a new history entry
+  capturing an active Python exception trace when requested
+  the ordinary job-record transitions that occur while a job is active
+
+READS
+  paths for the authoritative job record and its staged replacement
+
+CALLS
+  fsio JSON read and write operations
+  fsio copy-and-sync operation
+  fsio delete-and-sync operation
+  paths.path
+
+MAY SAFELY ASSUME
+  that paths have been initialized
+  that there is at most one active working job
+  that a fully readable job JSON record is valid job data
+
+ENSURES
+  that job-record changes are durably transformed
+  that every recorded job operation has a durable history entry
+
+DOES NOT OWN
+  startup repair of an interrupted replacement
+  directory setup
+  filesystem primitives
+  discovering or claiming inbox files
+  interpreting an opaque request file
+  dispatching a job
+  reply delivery
+  retiring a done job
+
+-----------------
+
+
+g = {
+    "job": None,
+}
+
+
+def read_the_current_active_job_if_there_is_one():
+    read the authoritative job record as JSON
+
+    if there is no authoritative job record:
+        g["job"] = None
+        return
+
+    g["job"] = the parsed job record
+
+
+def durably_replace_the_current_job_with_its_new_state():
+    write g["job"] as JSON to the staged next-state job record
+    copy the staged next-state job record over the authoritative job record
+    delete the staged next-state job record
+
+
+def append_result(operation, result, flags):
+    if flags includes "error":
+        use the Python exception trace API to capture the active exception
+        put the captured trace in g["job"]["error"]
+
+    create one history entry with:
+        a timestamp for the present moment
+        operation
+        result
+        the captured exception trace, or None
+
+    add the history entry to g["job"]
+    durably_replace_the_current_job_with_its_new_state()
+
+
+SUPPORTED FLAGS for append_result
+  error
+    capture the active Python exception trace and store it in the job
+    and the new history entry
+
+
+-----------------

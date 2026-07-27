@@ -1,36 +1,104 @@
+rendered file: src\uketsuke\runtime.py
+
+The one-turn receptionist machine.
 
 OWNS
-    resolving one turn
-    accepting an inbox/ item, turning it into a job
-    dispatching a job
-    sending the response for the job
-    retiring the job
-    
-    attention priority
+  resolving one uketsuke turn
+  identifying and performing the absolute highest-priority available
+    receptionist action
+  the priority order among pending receptionist actions
+  globally inspectable facts about the most recent turn
 
 READS
+  the active job, when one exists
+  the inbox, when there is no active job
 
 CALLS
+  the machine responsible for the selected receptionist action
+
+MAY SAFELY ASSUME
+  that startup initialization has completed
+  that the configured directory tree exists
+
+ENSURES
+  that do_tick performs at most one meaningful receptionist action
+  that a True-returning do_tick performs the absolute highest-priority
+    action available at that time
+  that do_tick returns False when there was no work to do
+  that the runtime state panel describes the most recent turn
 
 DOES NOT OWN
+  the host program's forever loop
+  scheduling, sleeping, or process lifetime
+  durable job-record transitions
+  the mechanics of interpreting or dispatching an opaque request
+  the mechanics of reply delivery
+  the mechanics of retiring a done job
+
+-----------------
+
+
+g = {
+    "operation": None,
+}
+
+
+panel = {
+    "turn-count": 0,
+    "last-operation": None,
+    "last-result": None,
+    "last-error": None,
+}
+
+
+def do_tick():
+    panel["turn-count"] += 1
+    clear_the_observation_facts_for_this_new_turn()
+
+    g["operation"] = identify_what_needs_to_be_done()
+
+    if g["operation"] is None:
+        panel["last-operation"] = "idle"
+        return False
+
+    perform g["operation"]
+    set panel["last-operation"] to the descriptive name of g["operation"]
+    return True
+
+
+def clear_the_observation_facts_for_this_new_turn():
+    g["operation"] = None
+    panel["last-operation"] = None
+    panel["last-result"] = None
+    panel["last-error"] = None
+
+
+def identify_what_needs_to_be_done():
+    examine the active job and inbox according to the planned priority order
+
+    if there is a result that needs to be sent:
+        return the operation that sends the result and moves the job to done
+
+    if there is a task that needs to be done:
+        return the operation that does the task and moves the job to the
+        state from which its result will be sent
+
+    if there is an inbox message available to claim:
+        return the operation that claims it and creates its job
+
+    return None
 
 
 -----------------
 
 
+PLANNED PRIORITY ORDER
 
-g = {
-    "op-hint": None
-}
+These are part of the intended routine, but are not all implemented in
+the current cycle.
 
-
-
-def do_tick():
-    next_work = g["op-hint"] or identify_what_needs_to_be_done()
-    next_work()
-
-
-def identify_what_needs_to_be_done():
-    look inside the working/ directory
-    if there's a job there
-	
+  1. send a result, then move the job to done
+  2. do a task, then move the job to the state from which its result
+     will be sent
+  3. claim an inbox message and create its job
+  4. otherwise, there is no work
